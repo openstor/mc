@@ -19,6 +19,7 @@ package cmd
 
 import (
 	"archive/zip"
+	"context"
 	gojson "encoding/json"
 	"fmt"
 	"os"
@@ -26,59 +27,59 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var supportPerfFlags = append([]cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "size",
 		Usage: "size of the object used for uploads/downloads",
 		Value: "64MiB",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "verbose, v",
 		Usage: "display per-server stats",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "duration",
 		Usage:  "maximum duration each perf tests are run",
 		Value:  "10s",
 		Hidden: true,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:   "concurrent",
 		Usage:  "number of concurrent requests per server",
 		Value:  32,
 		Hidden: true,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "bucket",
 		Usage:  "provide a custom bucket name to use (NOTE: bucket must be created prior)",
 		Hidden: true, // Hidden for now.
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "noclear",
 		Usage:  "do not clear bucket after running object perf test",
 		Hidden: true, // Hidden for now.
 	},
 	// Drive test specific flags.
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "filesize",
 		Usage:  "total amount of data read/written to each drive",
 		Value:  "1GiB",
 		Hidden: true,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "blocksize",
 		Usage:  "read/write block size",
 		Value:  "4MiB",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "serial",
 		Usage:  "run tests on drive(s) one-by-one",
 		Hidden: true,
@@ -270,8 +271,8 @@ func (p PerfTestOutput) JSON() string {
 
 var globalPerfTestVerbose bool
 
-func mainSupportPerf(ctx *cli.Context) error {
-	args := ctx.Args()
+func mainSupportPerf(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args().Slice()
 
 	// the alias parameter from cli
 	aliasedURL := ""
@@ -280,7 +281,7 @@ func mainSupportPerf(ctx *cli.Context) error {
 	case 1:
 		// cannot use alias by the name 'drive' or 'net'
 		if args[0] == "drive" || args[0] == "net" || args[0] == "object" || args[0] == "site-replication" {
-			showCommandHelpAndExit(ctx, 1)
+			showCommandHelpAndExit(ctx, cmd, 1)
 		}
 		aliasedURL = args[0]
 
@@ -288,11 +289,11 @@ func mainSupportPerf(ctx *cli.Context) error {
 		perfType = args[0]
 		aliasedURL = args[1]
 	default:
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	// Main execution
-	execSupportPerf(ctx, aliasedURL, perfType)
+	execSupportPerf(ctx, cmd, aliasedURL, perfType)
 
 	return nil
 }
@@ -460,14 +461,14 @@ func convertPerfResults(results []PerfTestResult) PerfTestOutput {
 	return out
 }
 
-func execSupportPerf(ctx *cli.Context, aliasedURL, perfType string) {
-	alias, apiKey := initSubnetConnectivity(ctx, aliasedURL, true)
+func execSupportPerf(ctx context.Context, cmd *cli.Command, aliasedURL, perfType string) {
+	alias, apiKey := initSubnetConnectivity(ctx, cmd, aliasedURL, true)
 	if len(apiKey) == 0 {
 		// api key not passed as flag. Check that the cluster is registered.
 		apiKey = validateClusterRegistered(alias, true)
 	}
 
-	results := runPerfTests(ctx, aliasedURL, perfType)
+	results := runPerfTests(ctx, cmd, aliasedURL, perfType)
 	if globalJSON {
 		// No file to be saved or uploaded to SUBNET in case of `--json`
 		return
@@ -517,7 +518,7 @@ func savePerfResultFile(tmpFileName, resultFileNamePfx string) {
 	console.Infof("MinIO performance report saved at %s, please upload to SUBNET portal manually\n", zipFileName)
 }
 
-func runPerfTests(ctx *cli.Context, aliasedURL, perfType string) []PerfTestResult {
+func runPerfTests(ctx context.Context, cmd *cli.Command, aliasedURL, perfType string) []PerfTestResult {
 	resultCh := make(chan PerfTestResult)
 	results := []PerfTestResult{}
 	defer close(resultCh)
@@ -531,17 +532,17 @@ func runPerfTests(ctx *cli.Context, aliasedURL, perfType string) []PerfTestResul
 	for _, t := range tests {
 		switch t {
 		case "drive":
-			mainAdminSpeedTestDrive(ctx, aliasedURL, resultCh)
+			mainAdminSpeedTestDrive(ctx, cmd, aliasedURL, resultCh)
 		case "object":
-			mainAdminSpeedTestObject(ctx, aliasedURL, resultCh)
+			mainAdminSpeedTestObject(ctx, cmd, aliasedURL, resultCh)
 		case "net":
-			mainAdminSpeedTestNetperf(ctx, aliasedURL, resultCh)
+			mainAdminSpeedTestNetperf(ctx, cmd, aliasedURL, resultCh)
 		case "site-replication":
-			mainAdminSpeedTestSiteReplication(ctx, aliasedURL, resultCh)
+			mainAdminSpeedTestSiteReplication(ctx, cmd, aliasedURL, resultCh)
 		case "client":
-			mainAdminSpeedTestClientPerf(ctx, aliasedURL, resultCh)
+			mainAdminSpeedTestClientPerf(ctx, cmd, aliasedURL, resultCh)
 		default:
-			showCommandHelpAndExit(ctx, 1) // last argument is exit code
+			showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 		}
 
 		if !globalJSON {

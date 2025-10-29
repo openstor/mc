@@ -18,11 +18,13 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminGroupEnableCmd = cli.Command{
@@ -48,20 +50,21 @@ EXAMPLES:
 }
 
 // checkAdminGroupEnableSyntax - validate all the passed arguments
-func checkAdminGroupEnableSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminGroupEnableSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminGroupEnableDisable is the handle for "mc admin group enable|disable" command.
-func mainAdminGroupEnableDisable(ctx *cli.Context) error {
-	checkAdminGroupEnableSyntax(ctx)
+func mainAdminGroupEnableDisable(ctx context.Context, cmd *cli.Command) error {
+	checkAdminGroupEnableSyntax(ctx, cmd)
 
 	console.SetColor("GroupMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -70,19 +73,24 @@ func mainAdminGroupEnableDisable(ctx *cli.Context) error {
 
 	group := args.Get(1)
 	var status madmin.GroupStatus
-	switch ctx.Command.Name {
+	switch cmd.Name {
 	case "enable":
 		status = madmin.GroupEnabled
 	case "disable":
 		status = madmin.GroupDisabled
 	default:
-		fatalIf(errInvalidArgument().Trace(ctx.Command.Name), "Invalid group status name")
+		fatalIf(errInvalidArgument().Trace(cmd.Name), "Invalid group status name")
 	}
-	e := client.SetGroupStatus(globalContext, group, status)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable set group status")
+	e := client.SetGroupStatus(ctx, group, status)
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable set group status")
 
 	printMsg(groupMessage{
-		op:          ctx.Command.Name,
+		op:          cmd.Name,
 		GroupName:   group,
 		GroupStatus: string(status),
 	})

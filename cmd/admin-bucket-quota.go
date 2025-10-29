@@ -18,15 +18,17 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var adminQuotaFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "hard",
 		Usage: "set a hard quota, disallowing writes after quota is reached",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "clear",
 		Usage: "clears bucket quota configured for bucket",
 	},
@@ -43,7 +45,7 @@ var adminBucketQuotaCmd = cli.Command{
 }
 
 // mainAdminBucketQuota is the handler for "mc admin bucket quota" command.
-func mainAdminBucketQuota(_ *cli.Context) error {
+func mainAdminBucketQuota(ctx context.Context, cmd *cli.Command) error {
 	deprecatedError("mc quota")
 	return nil
 }

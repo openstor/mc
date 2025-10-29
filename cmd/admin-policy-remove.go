@@ -18,15 +18,17 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminPolicyRemoveCmd = cli.Command{
+var adminPolicyRemoveCmd = &cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove an IAM policy",
 	Action:       mainAdminPolicyRemove,
 	OnUsageError: onUsageError,
@@ -51,30 +53,31 @@ EXAMPLES:
 }
 
 // checkAdminPolicyRemoveSyntax - validate all the passed arguments
-func checkAdminPolicyRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminPolicyRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminPolicyRemove is the handle for "mc admin policy remove" command.
-func mainAdminPolicyRemove(ctx *cli.Context) error {
-	checkAdminPolicyRemoveSyntax(ctx)
+func mainAdminPolicyRemove(ctx context.Context, cmd *cli.Command) error {
+	checkAdminPolicyRemoveSyntax(ctx, cmd)
 
 	console.SetColor("PolicyMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	fatalIf(probe.NewError(client.RemoveCannedPolicy(globalContext, args.Get(1))).Trace(args...), "Unable to remove policy")
+	fatalIf(probe.NewError(client.RemoveCannedPolicy(globalContext, args.Get(1))).Trace(args.Slice()...), "Unable to remove policy")
 
 	printMsg(userPolicyMessage{
-		op:     ctx.Command.Name,
+		op:     "remove",
 		Policy: args.Get(1),
 	})
 

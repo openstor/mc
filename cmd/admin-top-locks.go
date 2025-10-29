@@ -18,15 +18,17 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var topLocksFlag = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "stale",
 		Usage: "list stale locks",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:   "count",
 		Usage:  "number of top locks",
 		Hidden: true,
@@ -45,7 +47,7 @@ var adminTopLocksCmd = cli.Command{
 `,
 }
 
-func mainAdminTopLocks(_ *cli.Context) error {
+func mainAdminTopLocks(_ context.Context, _ *cli.Command) error {
 	deprecatedError("mc support top locks")
 	return nil
 }

@@ -29,74 +29,74 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // rm specific flags.
 var (
 	rmFlags = []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "versions",
 			Usage: "remove object(s) and all its versions",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "recursive, r",
 			Usage: "remove recursively",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "force",
 			Usage: "allow a recursive remove operation",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "dangerous",
 			Usage: "allow site-wide removal of objects",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "rewind",
 			Usage: "roll back object(s) to current version at specified time",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "version-id, vid",
 			Usage: "delete a specific version of an object",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "incomplete, I",
 			Usage: "remove incomplete uploads",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "dry-run",
 			Usage: "perform a fake remove operation",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "fake",
 			Usage:  "perform a fake remove operation",
 			Hidden: true, // deprecated 2022
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "stdin",
 			Usage: "read object names from STDIN",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "older-than",
 			Usage: "remove objects older than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "newer-than",
 			Usage: "remove objects newer than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "bypass",
 			Usage: "bypass governance",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "non-current",
 			Usage: "remove object(s) versions that are non-current",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "purge",
 			Usage:  "attempt a prefix purge, requires confirmation please use with caution - only works with '--force'",
 			Hidden: true,
@@ -206,17 +206,17 @@ func (r rmMessage) JSON() string {
 }
 
 // Validate command line arguments.
-func checkRmSyntax(ctx context.Context, cliCtx *cli.Context) {
+func checkRmSyntax(ctx context.Context, cmd *cli.Command) {
 	// Set command flags from context.
-	isForce := cliCtx.Bool("force")
-	isRecursive := cliCtx.Bool("recursive")
-	isStdin := cliCtx.Bool("stdin")
-	isDangerous := cliCtx.Bool("dangerous")
-	isVersions := cliCtx.Bool("versions")
-	isNoncurrentVersion := cliCtx.Bool("non-current")
-	isForceDel := cliCtx.Bool("purge")
-	versionID := cliCtx.String("version-id")
-	rewind := cliCtx.String("rewind")
+	isForce := cmd.Bool("force")
+	isRecursive := cmd.Bool("recursive")
+	isStdin := cmd.Bool("stdin")
+	isDangerous := cmd.Bool("dangerous")
+	isVersions := cmd.Bool("versions")
+	isNoncurrentVersion := cmd.Bool("non-current")
+	isForceDel := cmd.Bool("purge")
+	versionID := cmd.String("version-id")
+	rewind := cmd.String("rewind")
 	isNamespaceRemoval := false
 
 	if versionID != "" && (isRecursive || isVersions || rewind != "") {
@@ -239,13 +239,13 @@ func checkRmSyntax(ctx context.Context, cliCtx *cli.Context) {
 			"You cannot specify --purge with --recursive.")
 	}
 
-	if isForceDel && (isNoncurrentVersion || isVersions || cliCtx.IsSet("older-than") || cliCtx.IsSet("newer-than") || versionID != "") {
+	if isForceDel && (isNoncurrentVersion || isVersions || cmd.IsSet("older-than") || cmd.IsSet("newer-than") || versionID != "") {
 		fatalIf(errDummy().Trace(),
 			"You cannot specify --purge flag with any flag(s) other than --force.")
 	}
 
 	if !isForceDel {
-		for _, url := range cliCtx.Args() {
+		for _, url := range cmd.Args().Slice() {
 			// clean path for aliases like s3/.
 			// Note: UNC path using / works properly in go 1.9.2 even though it breaks the UNC specification.
 			url = filepath.ToSlash(filepath.Clean(url))
@@ -267,9 +267,9 @@ func checkRmSyntax(ctx context.Context, cliCtx *cli.Context) {
 		}
 	}
 
-	if !cliCtx.Args().Present() && !isStdin {
+	if !cmd.Args().Present() && !isStdin {
 		exitCode := 1
-		showCommandHelpAndExit(cliCtx, exitCode)
+		showCommandHelpAndExit(ctx, cmd, exitCode)
 	}
 
 	// For all recursive or versions bulk deletion operations make sure to check for 'force' flag.
@@ -312,7 +312,7 @@ func removeSingle(url, versionID string, opts removeOpts) error {
 			ignoreBucketExistsCheck: false,
 		})
 		if pErr != nil {
-			switch st := minio.ToErrorResponse(pErr.ToGoError()).StatusCode; st {
+			switch st := openstor.ToErrorResponse(pErr.ToGoError()).StatusCode; st {
 			case http.StatusBadRequest, http.StatusMethodNotAllowed:
 				ignoreStatError = true
 			default:
@@ -575,7 +575,7 @@ func listAndRemove(url string, opts removeOpts) error {
 						case PathInsufficientPermission:
 							// Ignore Permission error.
 							continue
-						case minio.ErrorResponse:
+						case openstor.ErrorResponse:
 							if strings.Contains(e.Message, "Object is WORM protected and cannot be overwritten") {
 								continue
 							}
@@ -696,25 +696,25 @@ func listAndRemove(url string, opts removeOpts) error {
 }
 
 // main for rm command.
-func mainRm(cliCtx *cli.Context) error {
+func mainRm(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelRm := context.WithCancel(globalContext)
 	defer cancelRm()
 
-	checkRmSyntax(ctx, cliCtx)
+	checkRmSyntax(ctx, cmd)
 
-	isIncomplete := cliCtx.Bool("incomplete")
-	isRecursive := cliCtx.Bool("recursive")
-	isFake := cliCtx.Bool("dry-run") || cliCtx.Bool("fake")
-	isStdin := cliCtx.Bool("stdin")
-	isBypass := cliCtx.Bool("bypass")
-	olderThan := cliCtx.String("older-than")
-	newerThan := cliCtx.String("newer-than")
-	isForce := cliCtx.Bool("force")
-	isForceDel := cliCtx.Bool("purge")
-	withNoncurrentVersion := cliCtx.Bool("non-current")
-	withVersions := cliCtx.Bool("versions")
-	versionID := cliCtx.String("version-id")
-	rewind := parseRewindFlag(cliCtx.String("rewind"))
+	isIncomplete := cmd.Bool("incomplete")
+	isRecursive := cmd.Bool("recursive")
+	isFake := cmd.Bool("dry-run") || cmd.Bool("fake")
+	isStdin := cmd.Bool("stdin")
+	isBypass := cmd.Bool("bypass")
+	olderThan := cmd.String("older-than")
+	newerThan := cmd.String("newer-than")
+	isForce := cmd.Bool("force")
+	isForceDel := cmd.Bool("purge")
+	withNoncurrentVersion := cmd.Bool("non-current")
+	withVersions := cmd.Bool("versions")
+	versionID := cmd.String("version-id")
+	rewind := parseRewindFlag(cmd.String("rewind"))
 
 	if withVersions && rewind.IsZero() {
 		rewind = time.Now().UTC()
@@ -726,7 +726,7 @@ func mainRm(cliCtx *cli.Context) error {
 	var rerr error
 	var e error
 	// Support multiple targets.
-	for _, url := range cliCtx.Args() {
+	for _, url := range cmd.Args().Slice() {
 		if isRecursive || withVersions {
 			e = listAndRemove(url, removeOpts{
 				timeRef:           rewind,

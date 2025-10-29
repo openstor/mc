@@ -17,25 +17,34 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminReplicateResyncSubcommands = []cli.Command{
+	"github.com/urfave/cli/v3"
+)
+
+var adminReplicateResyncSubcommands = []*cli.Command{
 	adminReplicateResyncStartCmd,
 	adminReplicateResyncStatusCmd,
 	adminReplicateResyncCancelCmd,
 }
 
-var adminReplicateResyncCmd = cli.Command{
-	Name:            "resync",
-	Usage:           "resync content to site",
-	Action:          mainAdminReplicateResync,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	Subcommands:     adminReplicateResyncSubcommands,
-	HideHelpCommand: true,
+var adminReplicateResyncCmd = &cli.Command{
+	Name:     "resync",
+	Usage:    "resync content to site",
+	Action:   mainAdminReplicateResync,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	HideHelp: true,
 }
 
-func mainAdminReplicateResync(ctx *cli.Context) error {
-	commandNotFound(ctx, adminReplicateResyncSubcommands)
+func mainAdminReplicateResync(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, func() []cli.Command {
+		commands := make([]cli.Command, len(adminReplicateResyncSubcommands))
+		for i, c := range adminReplicateResyncSubcommands {
+			commands[i] = *c
+		}
+		return commands
+	}())
 	return nil
 }

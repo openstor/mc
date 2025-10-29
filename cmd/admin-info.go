@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -28,16 +29,16 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/set"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminInfoFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "offline",
 		Usage: "show only offline nodes/drives",
 	},
@@ -370,17 +371,17 @@ func (u clusterStruct) JSON() string {
 }
 
 // checkAdminInfoSyntax - validate arguments passed by a user
-func checkAdminInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminInfo(ctx *cli.Context) error {
-	checkAdminInfoSyntax(ctx)
+func mainAdminInfo(ctx context.Context, cmd *cli.Command) error {
+	checkAdminInfoSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -388,7 +389,7 @@ func mainAdminInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	clusterInfo := clusterStruct{
-		onlyOffline: ctx.Bool("offline"),
+		onlyOffline: cmd.Bool("offline"),
 	}
 
 	// Fetch info of all servers (cluster or single server)

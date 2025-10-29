@@ -18,19 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var quotaSetFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "size",
 		Usage: "set a hard quota, disallowing writes after quota is reached",
 	},
@@ -101,46 +102,46 @@ func (q quotaMessage) JSON() string {
 }
 
 // checkQuotaSetSyntax - validate all the passed arguments
-func checkQuotaSetSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkQuotaSetSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainQuotaSet is the handler for "mc quota set" command.
-func mainQuotaSet(ctx *cli.Context) error {
-	checkQuotaSetSyntax(ctx)
+func mainQuotaSet(ctx context.Context, cmd *cli.Command) error {
+	checkQuotaSetSyntax(ctx, cmd)
 
 	console.SetColor("QuotaMessage", color.New(color.FgGreen))
 	console.SetColor("QuotaInfo", color.New(color.FgBlue))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	_, targetURL := url2Alias(args[0])
-	if !ctx.IsSet("size") {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+	_, targetURL := url2Alias(args.Get(0))
+	if !cmd.IsSet("size") {
+		fatalIf(errInvalidArgument().Trace(args.Slice()...),
 			"--size flag needs to be set.")
 	}
 	qType := madmin.HardQuota
-	quotaStr := ctx.String("size")
-	quota, e := humanize.ParseBytes(quotaStr)
-	fatalIf(probe.NewError(e).Trace(quotaStr), "Unable to parse quota")
+	sizeStr := cmd.String("size")
+	size, e := humanize.ParseBytes(sizeStr)
+	fatalIf(probe.NewError(e).Trace(sizeStr), "Unable to parse quota")
 
 	fatalIf(probe.NewError(client.SetBucketQuota(globalContext, targetURL, &madmin.BucketQuota{
-		Quota: quota,
-		Type:  qType,
-	})).Trace(args...), "Unable to set bucket quota")
+		Size: size,
+		Type: qType,
+	})).Trace(args.Slice()...), "Unable to set bucket quota")
 
 	printMsg(quotaMessage{
-		op:        ctx.Command.Name,
+		op:        cmd.Name,
 		Bucket:    targetURL,
-		Quota:     quota,
+		Quota:     size,
 		QuotaType: string(qType),
 		Status:    "success",
 	})

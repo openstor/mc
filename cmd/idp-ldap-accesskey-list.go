@@ -18,32 +18,33 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"strings"
 
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapAccesskeyListFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "users-only",
 		Usage: "only list user DNs",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "temp-only",
 		Usage: "only list temporary access keys",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "svcacc-only",
 		Usage: "only list service account access keys",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "self",
 		Usage: "list access keys for the authenticated user",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all",
 		Usage: "list all access keys for all LDAP users",
 	},
@@ -51,7 +52,7 @@ var idpLdapAccesskeyListFlags = []cli.Flag{
 
 var idpLdapAccesskeyListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list access key pairs for LDAP",
 	Action:       mainIDPLdapAccesskeyList,
 	Before:       setGlobalsFromContext,
@@ -90,8 +91,8 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLdapAccesskeyList(ctx *cli.Context) error {
-	aliasedURL, tentativeAll, users, opts := commonAccesskeyList(ctx)
+func mainIDPLdapAccesskeyList(ctx context.Context, cmd *cli.Command) error {
+	aliasedURL, tentativeAll, users, opts := commonAccesskeyList(ctx, cmd)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
@@ -120,19 +121,19 @@ func mainIDPLdapAccesskeyList(ctx *cli.Context) error {
 	return nil
 }
 
-func commonAccesskeyList(ctx *cli.Context) (aliasedURL string, tentativeAll bool, users []string, opts madmin.ListAccessKeysOpts) {
-	if len(ctx.Args()) == 0 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func commonAccesskeyList(ctx context.Context, cmd *cli.Command) (aliasedURL string, tentativeAll bool, users []string, opts madmin.ListAccessKeysOpts) {
+	if cmd.Args().Len() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	usersOnly := ctx.Bool("users-only")
-	stsOnly := ctx.Bool("temp-only")
-	svcaccOnly := ctx.Bool("svcacc-only")
-	selfFlag := ctx.Bool("self")
-	opts.All = ctx.Bool("all")
-	opts.AllConfigs = ctx.Bool("all-configs")
+	usersOnly := cmd.Bool("users-only")
+	stsOnly := cmd.Bool("temp-only")
+	svcaccOnly := cmd.Bool("svcacc-only")
+	selfFlag := cmd.Bool("self")
+	opts.All = cmd.Bool("all")
+	opts.AllConfigs = cmd.Bool("all-configs")
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL = args.Get(0)
 	users = args.Tail()
 

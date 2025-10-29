@@ -23,30 +23,32 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 // ilm restore specific flags.
 var (
 	ilmRestoreFlags = []cli.Flag{
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "days",
 			Value: 1,
 			Usage: "keep the restored copy for N days",
 		},
-		cli.BoolFlag{
-			Name:  "recursive, r",
-			Usage: "apply recursively",
+		&cli.BoolFlag{
+			Name:    "recursive",
+			Aliases: []string{"r"},
+			Usage:   "apply recursively",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "versions",
 			Usage: "apply on versions",
 		},
-		cli.StringFlag{
-			Name:  "version-id, vid",
-			Usage: "select a specific version id",
+		&cli.StringFlag{
+			Name:    "version-id",
+			Aliases: []string{"vid"},
+			Usage:   "select a specific version id",
 		},
 	}
 )
@@ -57,7 +59,7 @@ var ilmRestoreCmd = cli.Command{
 	Action:       mainILMRestore,
 	OnUsageError: onUsageError,
 	Before:       setGlobalsFromContext,
-	Flags:        append(append(ilmRestoreFlags, encCFlag), globalFlags...),
+	Flags:        append(append(ilmRestoreFlags, &encCFlag), globalFlags...),
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -91,16 +93,16 @@ EXAMPLES:
 }
 
 // checkILMRestoreSyntax - validate arguments passed by user
-func checkILMRestoreSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func checkILMRestoreSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 
-	if ctx.Int("days") <= 0 {
+	if cmd.Int("days") <= 0 {
 		fatalIf(errDummy().Trace(), "--days should be equal or greater than 1")
 	}
 
-	if ctx.Bool("version-id") && (ctx.Bool("recursive") || ctx.Bool("versions")) {
+	if cmd.String("version-id") != "" && (cmd.Bool("recursive") || cmd.Bool("versions")) {
 		fatalIf(errDummy().Trace(), "You cannot combine --version-id with --recursive or --versions flags.")
 	}
 }
@@ -297,21 +299,21 @@ func showRestoreStatus(restoreReqStatus, restoreFinishedStatus chan *probe.Error
 	close(doneCh)
 }
 
-func mainILMRestore(cliCtx *cli.Context) (cErr error) {
+func mainILMRestore(ctx context.Context, cmd *cli.Command) (cErr error) {
 	ctx, cancelILMRestore := context.WithCancel(globalContext)
 	defer cancelILMRestore()
 
-	checkILMRestoreSyntax(cliCtx)
+	checkILMRestoreSyntax(ctx, cmd)
 
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
-	versionID := cliCtx.String("version-id")
-	recursive := cliCtx.Bool("recursive")
-	includeVersions := cliCtx.Bool("versions")
-	days := cliCtx.Int("days")
+	versionID := cmd.String("version-id")
+	recursive := cmd.Bool("recursive")
+	includeVersions := cmd.Bool("versions")
+	days := cmd.Int("days")
 
-	encKeyDB, err := validateAndCreateEncryptionKeys(cliCtx)
+	encKeyDB, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	fatalIf(err, "Unable to parse encryption keys.")
 
 	targetAlias, targetURL, _ := mustExpandAlias(aliasedURL)

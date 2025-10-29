@@ -18,32 +18,36 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var adminTopAPIFlags = []cli.Flag{
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "name",
 		Usage: "summarize current calls for matching API name",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "path",
 		Usage: "summarize current API calls only on matching path",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "node",
 		Usage: "summarize current API calls only on matching servers",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "errors, e",
 		Usage: "summarize current API calls throwing only errors",
 	},
 }
 
 var adminTopAPICmd = cli.Command{
-	Name:            "api",
-	Usage:           "summarize API events on MinIO server in real-time",
-	Action:          mainAdminTopAPI,
+	Name:  "api",
+	Usage: "summarize API events on MinIO server in real-time",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		return mainAdminTopAPI(cmd)
+	},
 	OnUsageError:    onUsageError,
 	Before:          setGlobalsFromContext,
 	Flags:           append(adminTopAPIFlags, globalFlags...),
@@ -53,7 +57,7 @@ var adminTopAPICmd = cli.Command{
 `,
 }
 
-func mainAdminTopAPI(_ *cli.Context) error {
+func mainAdminTopAPI(cmd *cli.Command) error {
 	deprecatedError("mc support top api")
 	return nil
 }

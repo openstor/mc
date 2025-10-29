@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/mimedb"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/mimedb"
 )
 
 // ClientURL url client url structure

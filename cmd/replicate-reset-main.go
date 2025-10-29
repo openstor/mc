@@ -17,11 +17,15 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var replicateResyncSubcommands = []cli.Command{
-	replicateResyncStartCmd,
-	replicateResyncStatusCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var replicateResyncSubcommands = []*cli.Command{
+	&replicateResyncStartCmd,
+	&replicateResyncStatusCmd,
 }
 
 var replicateResyncCmd = cli.Command{
@@ -31,14 +35,18 @@ var replicateResyncCmd = cli.Command{
 	Action:          mainReplicateResync,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     replicateResyncSubcommands,
+	Commands:        replicateResyncSubcommands,
 	Aliases:         []string{"reset"},
-	HiddenAliases:   true,
 }
 
 // mainReplicateResync is the handle for "mc replicate resync" command.
-func mainReplicateResync(ctx *cli.Context) error {
-	commandNotFound(ctx, replicateResyncSubcommands)
+func mainReplicateResync(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range replicateResyncSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "status", "start", have their own main.
 }

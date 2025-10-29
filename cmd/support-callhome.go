@@ -18,11 +18,13 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"context"
+
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var supportCallhomeCmd = cli.Command{
@@ -79,11 +81,11 @@ func isDiagCallhomeEnabled(alias string) bool {
 	return isFeatureEnabled(alias, "callhome", madmin.Default)
 }
 
-func mainCallhome(ctx *cli.Context) error {
+func mainCallhome(ctx context.Context, cmd *cli.Command) error {
 	initLicInfoColors()
 
 	setSuccessMessageColor()
-	alias, arg := checkToggleCmdSyntax(ctx)
+	alias, arg := checkToggleCmdSyntax(ctx, cmd)
 	validateClusterRegistered(alias, false)
 
 	if arg == "status" {

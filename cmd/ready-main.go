@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -34,11 +34,11 @@ const (
 )
 
 var readyFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "cluster-read",
 		Usage: "check if the cluster has enough read quorum",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "maintenance",
 		Usage: "check if the cluster is taken down for maintenance",
 	},
@@ -103,19 +103,19 @@ func (r readyMessage) JSON() string {
 }
 
 // mainReady - main handler for mc ready command.
-func mainReady(cliCtx *cli.Context) error {
-	if !cliCtx.Args().Present() {
+func mainReady(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() == 0 {
 		exitCode := 1
-		showCommandHelpAndExit(cliCtx, exitCode)
+		showCommandHelpAndExit(ctx, cmd, exitCode)
 	}
 
 	// Set command flags from context.
-	clusterRead := cliCtx.Bool("cluster-read")
-	maintenance := cliCtx.Bool("maintenance")
+	clusterRead := cmd.Bool("cluster-read")
+	maintenance := cmd.Bool("maintenance")
 
 	ctx, cancelClusterReady := context.WithCancel(globalContext)
 	defer cancelClusterReady()
-	aliasedURL := cliCtx.Args().Get(0)
+	aliasedURL := cmd.Args().Get(0)
 
 	anonClient, err := newAnonymousClient(aliasedURL)
 	fatalIf(err.Trace(aliasedURL), "Couldn't construct anonymous client for `"+aliasedURL+"`.")

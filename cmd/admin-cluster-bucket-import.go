@@ -28,11 +28,11 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/klauspost/compress/zip"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminClusterBucketImportCmd = cli.Command{
@@ -58,16 +58,16 @@ EXAMPLES:
 `,
 }
 
-func checkBucketImportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkBucketImportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainClusterBucketImport - bucket metadata import command
-func mainClusterBucketImport(ctx *cli.Context) error {
+func mainClusterBucketImport(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkBucketImportSyntax(ctx)
+	checkBucketImportSyntax(ctx, cmd)
 	console.SetColor("Name", color.New(color.Bold, color.FgCyan))
 	console.SetColor("success", color.New(color.Bold, color.FgGreen))
 	console.SetColor("warning", color.New(color.Bold, color.FgYellow))
@@ -77,13 +77,13 @@ func mainClusterBucketImport(ctx *cli.Context) error {
 	console.SetColor("passCell", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	var r io.Reader
 	var sz int64
 	f, e := os.Open(args.Get(1))
 	if e != nil {
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to get bucket metadata")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get bucket metadata")
 	}
 	if st, e := f.Stat(); e == nil {
 		sz = st.Size()
@@ -92,10 +92,10 @@ func mainClusterBucketImport(ctx *cli.Context) error {
 	r = f
 
 	_, e = zip.NewReader(r.(io.ReaderAt), sz)
-	fatalIf(probe.NewError(e).Trace(args...), fmt.Sprintf("Unable to read zip file %s", args.Get(1)))
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), fmt.Sprintf("Unable to read zip file %s", args.Get(1)))
 
 	f, e = os.Open(args.Get(1))
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get bucket metadata")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get bucket metadata")
 	defer f.Close()
 
 	// Create a new MinIO Admin Client
@@ -117,7 +117,7 @@ func mainClusterBucketImport(ctx *cli.Context) error {
 		BucketMetaImportErrs: rpt,
 		Status:               "success",
 		URL:                  aliasedURL,
-		Op:                   ctx.Command.Name,
+		Op:                   cmd.Name,
 	})
 
 	return nil

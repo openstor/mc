@@ -17,15 +17,19 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var idpOpenidAccesskeySubcommands = []cli.Command{
-	idpOpenidAccesskeyListCmd,
-	idpOpenidAccesskeyRemoveCmd,
-	idpOpenidAccesskeyInfoCmd,
-	idpOpenidAccesskeyEditCmd,
-	idpOpenidAccesskeyEnableCmd,
-	idpOpenidAccesskeyDisableCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var idpOpenidAccesskeySubcommands = []*cli.Command{
+	&idpOpenidAccesskeyListCmd,
+	&idpOpenidAccesskeyRemoveCmd,
+	&idpOpenidAccesskeyInfoCmd,
+	&idpOpenidAccesskeyEditCmd,
+	&idpOpenidAccesskeyEnableCmd,
+	&idpOpenidAccesskeyDisableCmd,
 }
 
 var idpOpenIDAccesskeyCmd = cli.Command{
@@ -34,11 +38,11 @@ var idpOpenIDAccesskeyCmd = cli.Command{
 	Action:          mainIDPOpenIDAccesskey,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     idpOpenidAccesskeySubcommands,
+	Commands:        idpOpenidAccesskeySubcommands,
 	HideHelpCommand: true,
 }
 
-func mainIDPOpenIDAccesskey(ctx *cli.Context) error {
-	commandNotFound(ctx, idpOpenidAccesskeySubcommands)
+func mainIDPOpenIDAccesskey(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

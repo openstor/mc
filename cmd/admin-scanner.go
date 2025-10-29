@@ -17,7 +17,11 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var adminScannerSubcommands = []cli.Command{
 	adminScannerInfo,
@@ -25,17 +29,16 @@ var adminScannerSubcommands = []cli.Command{
 }
 
 var adminScannerCmd = cli.Command{
-	Name:            "scanner",
-	Usage:           "provide MinIO scanner info",
-	Action:          mainAdminScanner,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	Subcommands:     adminScannerSubcommands,
-	HideHelpCommand: true,
+	Name:     "scanner",
+	Usage:    "provide MinIO scanner info",
+	Action:   mainAdminScanner,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	HideHelp: true,
 }
 
 // mainAdminScanner is the handle for "mc admin scanner" command.
-func mainAdminScanner(ctx *cli.Context) error {
-	commandNotFound(ctx, adminScannerSubcommands)
+func mainAdminScanner(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, adminScannerSubcommands)
 	return nil
 }

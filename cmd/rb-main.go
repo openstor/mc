@@ -25,19 +25,19 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var rbFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "force",
 		Usage: "force a recursive remove operation on all object versions",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "dangerous",
 		Usage: "allow site-wide removal of objects",
 	},
@@ -95,16 +95,16 @@ func (s removeBucketMessage) JSON() string {
 }
 
 // Validate command line arguments.
-func checkRbSyntax(cliCtx *cli.Context) {
-	if !cliCtx.Args().Present() {
+func checkRbSyntax(ctx context.Context, cmd *cli.Command) {
+	if !cmd.Args().Present() {
 		exitCode := 1
-		showCommandHelpAndExit(cliCtx, exitCode)
+		showCommandHelpAndExit(ctx, cmd, exitCode)
 	}
 	// Set command flags from context.
-	isForce := cliCtx.Bool("force")
-	isDangerous := cliCtx.Bool("dangerous")
+	isForce := cmd.Bool("force")
+	isDangerous := cmd.Bool("dangerous")
 
-	for _, url := range cliCtx.Args() {
+	for _, url := range cmd.Args().Slice() {
 		if isS3NamespaceRemoval(url) {
 			if isForce && isDangerous {
 				continue
@@ -214,7 +214,7 @@ func deleteBucket(ctx context.Context, url string, isForce bool) *probe.Error {
 	// why we start with regular bucket removal first.
 	err := clnt.RemoveBucket(ctx, false)
 	if err != nil {
-		if isForce && minio.ToErrorResponse(err.ToGoError()).Code == "BucketNotEmpty" {
+		if isForce && openstor.ToErrorResponse(err.ToGoError()).Code == "BucketNotEmpty" {
 			return clnt.RemoveBucket(ctx, true)
 		}
 	}
@@ -234,19 +234,19 @@ func isS3NamespaceRemoval(url string) bool {
 }
 
 // mainRemoveBucket is entry point for rb command.
-func mainRemoveBucket(cliCtx *cli.Context) error {
+func mainRemoveBucket(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelRemoveBucket := context.WithCancel(globalContext)
 	defer cancelRemoveBucket()
 
 	// check 'rb' cli arguments.
-	checkRbSyntax(cliCtx)
-	isForce := cliCtx.Bool("force")
+	checkRbSyntax(ctx, cmd)
+	isForce := cmd.Bool("force")
 
 	// Additional command specific theme customization.
 	console.SetColor("RemoveBucket", color.New(color.FgGreen, color.Bold))
 
 	var cErr error
-	for _, targetURL := range cliCtx.Args() {
+	for _, targetURL := range cmd.Args().Slice() {
 		// Instantiate client for URL.
 		clnt, err := newClient(targetURL)
 		if err != nil {

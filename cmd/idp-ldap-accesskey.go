@@ -17,18 +17,22 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var idpLdapAccesskeySubcommands = []cli.Command{
-	idpLdapAccesskeyListCmd,
-	idpLdapAccesskeyRemoveCmd,
-	idpLdapAccesskeyInfoCmd,
-	idpLdapAccesskeyCreateCmd,
-	idpLdapAccesskeyCreateWithLoginCmd,
-	idpLdapAccesskeyEditCmd,
-	idpLdapAccesskeyEnableCmd,
-	idpLdapAccesskeyDisableCmd,
-	idpLdapAccesskeySTSRevokeCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var idpLdapAccesskeySubcommands = []*cli.Command{
+	&idpLdapAccesskeyListCmd,
+	&idpLdapAccesskeyRemoveCmd,
+	&idpLdapAccesskeyInfoCmd,
+	&idpLdapAccesskeyCreateCmd,
+	&idpLdapAccesskeyCreateWithLoginCmd,
+	&idpLdapAccesskeyEditCmd,
+	&idpLdapAccesskeyEnableCmd,
+	&idpLdapAccesskeyDisableCmd,
+	&idpLdapAccesskeySTSRevokeCmd,
 }
 
 var idpLdapAccesskeyCmd = cli.Command{
@@ -37,11 +41,11 @@ var idpLdapAccesskeyCmd = cli.Command{
 	Action:          mainIDPLDAPAccesskey,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     idpLdapAccesskeySubcommands,
+	Commands:        idpLdapAccesskeySubcommands,
 	HideHelpCommand: true,
 }
 
-func mainIDPLDAPAccesskey(ctx *cli.Context) error {
-	commandNotFound(ctx, idpLdapAccesskeySubcommands)
+func mainIDPLDAPAccesskey(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

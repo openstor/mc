@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -57,21 +57,21 @@ func (t treeMessage) String() string {
 // JSON'ified message for scripting.
 // Does No-op. JSON requests are redirected to `ls -r --json`
 func (t treeMessage) JSON() string {
-	fatalIf(probe.NewError(errors.New("JSON() should never be called here")), "Unable to list in tree format. Please report this issue at https://github.com/minio/mc/issues")
+	fatalIf(probe.NewError(errors.New("JSON() should never be called here")), "Unable to list in tree format. Please report this issue at https://github.com/openstor/mc/issues")
 	return ""
 }
 
 var treeFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "files, f",
 		Usage: "includes files in tree",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "depth, d",
 		Usage: "sets the depth threshold",
 		Value: -1,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "display tree no later than specified date",
 	},
@@ -113,15 +113,15 @@ EXAMPLES:
 }
 
 // parseTreeSyntax - validate all the passed arguments
-func parseTreeSyntax(ctx context.Context, cliCtx *cli.Context) (args []string, depth int, files bool, timeRef time.Time) {
-	args = cliCtx.Args()
-	depth = cliCtx.Int("depth")
-	files = cliCtx.Bool("files")
+func parseTreeSyntax(ctx context.Context, cmd *cli.Command) (args []string, depth int, files bool, timeRef time.Time) {
+	args = cmd.Args().Slice()
+	depth = cmd.Int("depth")
+	files = cmd.Bool("files")
 
-	rewind := cliCtx.String("rewind")
+	rewind := cmd.String("rewind")
 	timeRef = parseRewindFlag(rewind)
 
-	if depth < -1 || cliCtx.Int("depth") == 0 {
+	if depth < -1 || cmd.Int("depth") == 0 {
 		fatalIf(errInvalidArgument().Trace(args...),
 			"please set a proper depth, for example: '--depth 1' to limit the tree output, default (-1) output displays everything")
 	}
@@ -265,7 +265,7 @@ func doTree(ctx context.Context, url string, timeRef time.Time, level int, branc
 }
 
 // mainTree - is a handler for mc tree command
-func mainTree(cliCtx *cli.Context) error {
+func mainTree(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelList := context.WithCancel(globalContext)
 	defer cancelList()
 
@@ -273,7 +273,7 @@ func mainTree(cliCtx *cli.Context) error {
 	console.SetColor("Dir", color.New(color.FgCyan, color.Bold))
 
 	// parse 'tree' cliCtx arguments.
-	args, depth, includeFiles, timeRef := parseTreeSyntax(ctx, cliCtx)
+	args, depth, includeFiles, timeRef := parseTreeSyntax(ctx, cmd)
 
 	// mimic operating system tool behavior.
 	if len(args) == 0 {

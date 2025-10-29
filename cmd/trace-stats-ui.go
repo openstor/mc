@@ -30,10 +30,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/pkg/v3/console"
 	"github.com/muesli/reflow/truncate"
 	"github.com/olekukonko/tablewriter"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/pkg/v3/console"
 	"golang.org/x/term"
 )
 

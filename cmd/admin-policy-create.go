@@ -18,18 +18,19 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminPolicyCreateCmd = cli.Command{
+var adminPolicyCreateCmd = &cli.Command{
 	Name:         "create",
 	Usage:        "create a new IAM policy",
 	Action:       mainAdminPolicyCreate,
@@ -58,9 +59,10 @@ EXAMPLES:
 }
 
 // checkAdminPolicyCreateSyntax - validate all the passed arguments
-func checkAdminPolicyCreateSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 3 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminPolicyCreateSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 3 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -117,26 +119,26 @@ func (u userPolicyMessage) JSON() string {
 }
 
 // mainAdminPolicyCreate is the handle for "mc admin policy create" command.
-func mainAdminPolicyCreate(ctx *cli.Context) error {
-	checkAdminPolicyCreateSyntax(ctx)
+func mainAdminPolicyCreate(ctx context.Context, cmd *cli.Command) error {
+	checkAdminPolicyCreateSyntax(ctx, cmd)
 
 	console.SetColor("PolicyMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	policy, e := os.ReadFile(args.Get(2))
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get policy")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get policy")
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	fatalIf(probe.NewError(client.AddCannedPolicy(globalContext, args.Get(1), policy)).Trace(args...), "Unable to create new policy")
+	fatalIf(probe.NewError(client.AddCannedPolicy(globalContext, args.Get(1), policy)).Trace(args.Slice()...), "Unable to create new policy")
 
 	printMsg(userPolicyMessage{
-		op:     ctx.Command.Name,
+		op:     "create",
 		Policy: args.Get(1),
 	})
 

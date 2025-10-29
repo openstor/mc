@@ -18,24 +18,25 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminReplicateAddFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "replicate-ilm-expiry",
 		Usage: "replicate ILM expiry rules",
 	},
 }
 
-var adminReplicateAddCmd = cli.Command{
+var adminReplicateAddCmd = &cli.Command{
 	Name:         "add",
 	Usage:        "add one or more sites for replication",
 	Action:       mainAdminReplicateAdd,
@@ -82,12 +83,13 @@ func (m successMessage) String() string {
 	return console.Colorize("UserMessage", strings.Join(messages, "\n"))
 }
 
-func mainAdminReplicateAdd(ctx *cli.Context) error {
+func mainAdminReplicateAdd(ctx context.Context, cmd *cli.Command) error {
 	{
 		// Check argument count
-		argsNr := len(ctx.Args())
+		args := cmd.Args()
+		argsNr := args.Len()
 		if argsNr < 2 {
-			fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+			fatalIf(errInvalidArgument().Trace(args.Tail()...),
 				"Need at least two arguments to add command.")
 		}
 	}
@@ -95,15 +97,15 @@ func mainAdminReplicateAdd(ctx *cli.Context) error {
 	console.SetColor("UserMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	ps := make([]madmin.PeerSite, 0, len(ctx.Args()))
-	for _, clusterName := range ctx.Args() {
+	ps := make([]madmin.PeerSite, 0, args.Len())
+	for _, clusterName := range args.Slice() {
 		admClient, err := newAdminClient(clusterName)
 		fatalIf(err, "unable to initialize admin connection")
 
@@ -117,9 +119,9 @@ func mainAdminReplicateAdd(ctx *cli.Context) error {
 	}
 
 	var opts madmin.SRAddOptions
-	opts.ReplicateILMExpiry = ctx.Bool("replicate-ilm-expiry")
+	opts.ReplicateILMExpiry = cmd.Bool("replicate-ilm-expiry")
 	res, e := client.SiteReplicationAdd(globalContext, ps, opts)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to add sites for replication")
+	fatalIf(probe.NewError(e), "Unable to add sites for replication")
 
 	printMsg(successMessage(res))
 

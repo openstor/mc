@@ -21,8 +21,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
 )
 
 // prepareGetURLs - prepares target and source clientURLs for copying.
@@ -91,7 +91,7 @@ func guessGetURLType(ctx context.Context, o prepareCopyURLsOpts) (*copyURLsConte
 		if path == "" {
 			return cc, probe.NewError(fmt.Errorf("Please set a full path for s3 resource."))
 		}
-		cc.sourceContent = s3clnt.objectInfo2ClientContent(bucket, minio.ObjectInfo{
+		cc.sourceContent = s3clnt.objectInfo2ClientContent(bucket, openstor.ObjectInfo{
 			Key: path, VersionID: o.versionID,
 		})
 

@@ -22,25 +22,25 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var lhClearFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "clear legal hold recursively",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "clear legal hold of a specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "clear legal hold on an object version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "clear legal hold on multiple versions of object(s)",
 	},
@@ -79,12 +79,12 @@ EXAMPLES:
 }
 
 // main for legalhold clear command.
-func mainLegalHoldClear(cliCtx *cli.Context) error {
+func mainLegalHoldClear(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor("LegalHoldSuccess", color.New(color.FgGreen, color.Bold))
 	console.SetColor("LegalHoldPartialFailure", color.New(color.FgRed, color.Bold))
 	console.SetColor("LegalHoldMessageFailure", color.New(color.FgYellow))
 
-	targetURL, versionID, timeRef, recursive, withVersions := parseLegalHoldArgs(cliCtx)
+	targetURL, versionID, timeRef, recursive, withVersions := parseLegalHoldArgs(ctx, cmd)
 	if timeRef.IsZero() && withVersions {
 		timeRef = time.Now().UTC()
 	}
@@ -100,5 +100,5 @@ func mainLegalHoldClear(cliCtx *cli.Context) error {
 		fatalIf(errDummy().Trace(), "Bucket locking needs to be enabled in order to use this feature.")
 	}
 
-	return setLegalHold(ctx, targetURL, versionID, timeRef, withVersions, recursive, minio.LegalHoldDisabled)
+	return setLegalHold(ctx, targetURL, versionID, timeRef, withVersions, recursive, openstor.LegalHoldDisabled)
 }

@@ -18,12 +18,13 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"strings"
 
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapAddCmd = cli.Command{
@@ -55,12 +56,12 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPAdd(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPAdd(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 
 	aliasedURL := args.Get(0)
 
@@ -69,10 +70,10 @@ func mainIDPLDAPAdd(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	cfgName := madmin.Default
-	input := args[1:]
+	input := args.Tail()
 	if !strings.Contains(args.Get(1), "=") {
 		cfgName = args.Get(1)
-		input = args[2:]
+		input = args.Tail()[1:]
 	}
 
 	if cfgName != madmin.Default {
@@ -118,12 +119,12 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPUpdate(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPUpdate(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 
 	aliasedURL := args.Get(0)
 
@@ -132,10 +133,10 @@ func mainIDPLDAPUpdate(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	cfgName := madmin.Default
-	input := args[1:]
+	input := args.Tail()
 	if !strings.Contains(args.Get(1), "=") {
 		cfgName = args.Get(1)
-		input = args[2:]
+		input = args.Tail()[1:]
 	}
 
 	if cfgName != madmin.Default {
@@ -159,7 +160,7 @@ func mainIDPLDAPUpdate(ctx *cli.Context) error {
 
 var idpLdapRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove LDAP IDP server configuration",
 	Action:       mainIDPLDAPRemove,
 	Before:       setGlobalsFromContext,
@@ -180,18 +181,18 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPRemove(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPRemove(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
 	cfgName := madmin.Default
-	return idpRemove(ctx, false, cfgName)
+	return idpRemove(ctx, cmd, false, cfgName)
 }
 
 var idpLdapListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list LDAP IDP server configuration(s)",
 	Action:       mainIDPLDAPList,
 	Before:       setGlobalsFromContext,
@@ -212,12 +213,12 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPList(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPList(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	return idpListCommon(ctx, false)
+	return idpListCommon(ctx, cmd, false)
 }
 
 var idpLdapInfoCmd = cli.Command{
@@ -242,13 +243,13 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPInfo(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPInfo(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
 	cfgName := madmin.Default
-	return idpInfo(ctx, false, cfgName)
+	return idpInfo(ctx, cmd, false, cfgName)
 }
 
 var idpLdapEnableCmd = cli.Command{
@@ -273,13 +274,13 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPEnable(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPEnable(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
 	isOpenID, enable := false, true
-	return idpEnableDisable(ctx, isOpenID, enable)
+	return idpEnableDisable(ctx, cmd, isOpenID, enable)
 }
 
 var idpLdapDisableCmd = cli.Command{
@@ -304,11 +305,11 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLDAPDisable(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLDAPDisable(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
 	isOpenID, enable := false, false
-	return idpEnableDisable(ctx, isOpenID, enable)
+	return idpEnableDisable(ctx, cmd, isOpenID, enable)
 }

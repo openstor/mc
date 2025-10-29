@@ -23,15 +23,15 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateResyncStatusFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "remote-bucket",
 		Usage: "remote bucket ARN",
 	},
@@ -63,9 +63,9 @@ EXAMPLES:
 }
 
 // checkreplicateResyncStatusSyntax - validate all the passed arguments
-func checkreplicateResyncStatusSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkreplicateResyncStatusSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -126,7 +126,7 @@ func (r replicateResyncStatusMessage) String() string {
 	return rows
 }
 
-func mainreplicateResyncStatus(cliCtx *cli.Context) error {
+func mainreplicateResyncStatus(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelreplicateResyncStatus := context.WithCancel(globalContext)
 	defer cancelreplicateResyncStatus()
 
@@ -140,22 +140,22 @@ func mainreplicateResyncStatus(cliCtx *cli.Context) error {
 	console.SetColor("Failed", color.New(color.Bold, color.FgRed))
 	console.SetColor("Completed", color.New(color.Bold, color.FgGreen))
 
-	checkreplicateResyncStatusSyntax(cliCtx)
+	checkreplicateResyncStatusSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
 	fatalIf(err, "Unable to initialize connection.")
 
-	rinfo, err := client.ReplicationResyncStatus(ctx, cliCtx.String("remote-bucket"))
-	fatalIf(err.Trace(args...), "Unable to get replication resync status")
+	rinfo, err := client.ReplicationResyncStatus(ctx, cmd.String("remote-bucket"))
+	fatalIf(err.Trace(args.Slice()...), "Unable to get replication resync status")
 	printMsg(replicateResyncStatusMessage{
-		Op:                cliCtx.Command.Name,
+		Op:                "status",
 		URL:               aliasedURL,
 		ResyncTargetsInfo: rinfo,
-		TargetArn:         cliCtx.String("remote-bucket"),
+		TargetArn:         cmd.String("remote-bucket"),
 	})
 	return nil
 }

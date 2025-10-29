@@ -25,25 +25,25 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var lhSetFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "apply legal hold recursively",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "apply legal hold to a specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "apply legal hold on an object version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "apply legal hold on multiple versions of an object",
 	},
@@ -82,7 +82,7 @@ EXAMPLES:
 }
 
 // setLegalHold - Set legalhold for all objects within a given prefix.
-func setLegalHold(ctx context.Context, urlStr, versionID string, timeRef time.Time, withVersions, recursive bool, lhold minio.LegalHoldStatus) error {
+func setLegalHold(ctx context.Context, urlStr, versionID string, timeRef time.Time, withVersions, recursive bool, lhold openstor.LegalHoldStatus) error {
 	clnt, err := newClient(urlStr)
 	if err != nil {
 		fatalIf(err.Trace(), "Unable to parse the provided url.")
@@ -170,21 +170,21 @@ func setLegalHold(ctx context.Context, urlStr, versionID string, timeRef time.Ti
 }
 
 // Validate command line arguments.
-func parseLegalHoldArgs(cliCtx *cli.Context) (targetURL, versionID string, timeRef time.Time, recursive, withVersions bool) {
-	args := cliCtx.Args()
-	if len(args) != 1 {
-		showCommandHelpAndExit(cliCtx, 1)
+func parseLegalHoldArgs(ctx context.Context, cmd *cli.Command) (targetURL, versionID string, timeRef time.Time, recursive, withVersions bool) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	targetURL = args[0]
+	targetURL = args.Get(0)
 	if targetURL == "" {
 		fatalIf(errInvalidArgument(), "You cannot pass an empty target url.")
 	}
 
-	versionID = cliCtx.String("version-id")
-	recursive = cliCtx.Bool("recursive")
-	withVersions = cliCtx.Bool("versions")
-	rewind := cliCtx.String("rewind")
+	versionID = cmd.String("version-id")
+	recursive = cmd.Bool("recursive")
+	withVersions = cmd.Bool("versions")
+	rewind := cmd.String("rewind")
 
 	if versionID != "" && (recursive || withVersions || rewind != "") {
 		fatalIf(errInvalidArgument(), "You cannot pass --version-id with any of --versions, --recursive and --rewind flags.")
@@ -195,13 +195,13 @@ func parseLegalHoldArgs(cliCtx *cli.Context) (targetURL, versionID string, timeR
 }
 
 // main for legalhold set command.
-func mainLegalHoldSet(cliCtx *cli.Context) error {
+func mainLegalHoldSet(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor("LegalHoldSuccess", color.New(color.FgGreen, color.Bold))
 	console.SetColor("LegalHoldFailure", color.New(color.FgRed, color.Bold))
 	console.SetColor("LegalHoldPartialFailure", color.New(color.FgRed, color.Bold))
 	console.SetColor("LegalHoldMessageFailure", color.New(color.FgYellow))
 
-	targetURL, versionID, timeRef, recursive, withVersions := parseLegalHoldArgs(cliCtx)
+	targetURL, versionID, timeRef, recursive, withVersions := parseLegalHoldArgs(ctx, cmd)
 	if timeRef.IsZero() && withVersions {
 		timeRef = time.Now().UTC()
 	}
@@ -217,5 +217,5 @@ func mainLegalHoldSet(cliCtx *cli.Context) error {
 		fatalIf(errDummy().Trace(), "Bucket lock needs to be enabled in order to use this feature.")
 	}
 
-	return setLegalHold(ctx, targetURL, versionID, timeRef, withVersions, recursive, minio.LegalHoldEnabled)
+	return setLegalHold(ctx, targetURL, versionID, timeRef, withVersions, recursive, openstor.LegalHoldEnabled)
 }

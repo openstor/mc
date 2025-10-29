@@ -18,11 +18,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/minio/cli"
-	"github.com/minio/minio-go/v7/pkg/set"
+	"github.com/openstor/openstor-go/v7/pkg/set"
+	"github.com/urfave/cli/v3"
 )
 
 var adminSubnetHealthCmd = cli.Command{
@@ -36,27 +37,27 @@ var adminSubnetHealthCmd = cli.Command{
 	CustomHelpTemplate: "This command is deprecated and will be removed in a future release. Use 'mc support diag' instead.\n",
 }
 
-func mainSubnetHealth(ctx *cli.Context) error {
+func mainSubnetHealth(ctx context.Context, cmd *cli.Command) error {
 	boolValSet := set.CreateStringSet("true", "false")
 	newCmd := []string{"mc support diag"}
-	newCmd = append(newCmd, ctx.Args()...)
-	for _, flg := range ctx.Command.Flags {
-		flgName := flg.GetName()
-		if !ctx.IsSet(flgName) {
-			continue
-		}
+	newCmd = append(newCmd, cmd.Args().Slice()...)
 
-		// replace the deprecated --offline with --airgap
-		if flgName == "offline" {
-			flgName = "airgap"
-		}
+	// Since we can't iterate over flags directly, we'll check known flags
+	knownFlags := []string{"offline", "airgap", "dev", "quiet", "json", "debug", "insecure", "config-dir"}
+	for _, flgName := range knownFlags {
+		if cmd.IsSet(flgName) {
+			// replace the deprecated --offline with --airgap
+			if flgName == "offline" {
+				flgName = "airgap"
+			}
 
-		flgStr := "--" + flgName
-		flgVal := ctx.String(flgName)
-		if !boolValSet.Contains(flgVal) {
-			flgStr = fmt.Sprintf("%s \"%s\"", flgStr, flgVal)
+			flgStr := "--" + flgName
+			flgVal := cmd.String(flgName)
+			if !boolValSet.Contains(flgVal) {
+				flgStr = fmt.Sprintf("%s \"%s\"", flgStr, flgVal)
+			}
+			newCmd = append(newCmd, flgStr)
 		}
-		newCmd = append(newCmd, flgStr)
 	}
 
 	deprecatedError(strings.Join(newCmd, " "))

@@ -18,12 +18,14 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var adminBucketRemoteRmCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove configured remote target",
 	Action:       mainAdminBucketRemoteRemove,
 	OnUsageError: onUsageError,
@@ -33,7 +35,7 @@ var adminBucketRemoteRmCmd = cli.Command{
 }
 
 // mainAdminBucketRemoteRemove is the handle for "mc admin bucket remote rm" command.
-func mainAdminBucketRemoteRemove(_ *cli.Context) error {
+func mainAdminBucketRemoteRemove(ctx context.Context, cmd *cli.Command) error {
 	deprecatedError("mc replicate rm")
 	return nil
 }

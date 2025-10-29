@@ -18,36 +18,36 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminReplicateRemoveFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all",
 		Usage: "remove site replication from all participating sites",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "force",
 		Usage: "force removal of site(s) from site replication configuration",
 	},
 }
 
-var adminReplicateRemoveCmd = cli.Command{
-	Name:          "remove",
-	ShortName:     "rm",
-	Usage:         "remove one or more sites from site replication",
-	Action:        mainAdminReplicationRemoveStatus,
-	OnUsageError:  onUsageError,
-	HiddenAliases: true,
-	Before:        setGlobalsFromContext,
-	Flags:         append(globalFlags, adminReplicateRemoveFlags...),
+var adminReplicateRemoveCmd = &cli.Command{
+	Name:         "remove",
+	Aliases:      []string{"rm"},
+	Usage:        "remove one or more sites from site replication",
+	Action:       mainAdminReplicationRemoveStatus,
+	OnUsageError: onUsageError,
+	Before:       setGlobalsFromContext,
+	Flags:        append(globalFlags, adminReplicateRemoveFlags...),
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -92,39 +92,40 @@ func (i srRemoveStatus) String() string {
 	return console.Colorize("UserMessage", fmt.Sprintf("Following site(s) %s were removed partially, some operations failed: \nERROR: '%s'", i.sites, i.ErrDetail))
 }
 
-func checkAdminReplicateRemoveSyntax(ctx *cli.Context) {
+func checkAdminReplicateRemoveSyntax(ctx context.Context, cmd *cli.Command) {
 	// Check argument count
-	argsNr := len(ctx.Args())
-	if ctx.Bool("all") && argsNr > 1 {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+	args := cmd.Args()
+	argsNr := args.Len()
+	if cmd.Bool("all") && argsNr > 1 {
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"")
 	}
-	if argsNr < 2 && !ctx.Bool("all") {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+	if argsNr < 2 && !cmd.Bool("all") {
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"Need at least two arguments to remove command.")
 	}
-	if !ctx.Bool("force") {
+	if !cmd.Bool("force") {
 		fatalIf(errDummy().Trace(),
 			"Site removal requires --force flag. This operation is *IRREVERSIBLE*. Please review carefully before performing this *DANGEROUS* operation.")
 	}
 }
 
-func mainAdminReplicationRemoveStatus(ctx *cli.Context) error {
-	checkAdminReplicateRemoveSyntax(ctx)
+func mainAdminReplicationRemoveStatus(ctx context.Context, cmd *cli.Command) error {
+	checkAdminReplicateRemoveSyntax(ctx, cmd)
 	console.SetColor("UserMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	var rreq madmin.SRRemoveReq
 	rreq.SiteNames = append(rreq.SiteNames, args.Tail()...)
-	rreq.RemoveAll = ctx.Bool("all")
+	rreq.RemoveAll = cmd.Bool("all")
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	st, e := client.SiteReplicationRemove(globalContext, rreq)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to remove cluster replication")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to remove cluster replication")
 
 	printMsg(srRemoveStatus{
 		ReplicateRemoveStatus: st,

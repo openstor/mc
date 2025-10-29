@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -25,10 +26,10 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var licenseInfoCmd = cli.Command{
@@ -171,15 +172,15 @@ func initLicInfoColors() {
 	console.SetColor(licInfoValTag, color.New(color.FgWhite))
 }
 
-func mainLicenseInfo(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func mainLicenseInfo(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	initLicInfoColors()
 
-	aliasedURL := ctx.Args().Get(0)
-	alias, _ := initSubnetConnectivity(ctx, aliasedURL, true)
+	aliasedURL := cmd.Args().Get(0)
+	alias, _ := initSubnetConnectivity(ctx, cmd, aliasedURL, true)
 
 	apiKey, lic, e := getSubnetCreds(alias)
 	fatalIf(probe.NewError(e), "Error in checking cluster registration status")

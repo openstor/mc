@@ -23,30 +23,30 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var tagSetFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "set tags on a specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "set tags on a specific object version at specific time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "set tags on multiple versions for an object",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "recursivley set tags for all objects of subdirs",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "exclude-folders",
 		Usage: "exclude setting tags on folder objects",
 	},
@@ -119,18 +119,18 @@ func (t tagSetMessage) JSON() string {
 	return string(msgBytes)
 }
 
-func parseSetTagSyntax(ctx *cli.Context) (targetURL, versionID string, timeRef time.Time, withVersions bool, tags string, recursive bool, excludeFolders bool) {
-	if len(ctx.Args()) != 2 || ctx.Args().Get(1) == "" {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func parseSetTagSyntax(ctx context.Context, cmd *cli.Command) (targetURL, versionID string, timeRef time.Time, withVersions bool, tags string, recursive bool, excludeFolders bool) {
+	if cmd.Args().Len() != 2 || cmd.Args().Get(1) == "" {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 
-	targetURL = ctx.Args().Get(0)
-	tags = ctx.Args().Get(1)
-	versionID = ctx.String("version-id")
-	withVersions = ctx.Bool("versions")
-	rewind := ctx.String("rewind")
-	recursive = ctx.Bool("recursive")
-	excludeFolders = ctx.Bool("exclude-folders")
+	targetURL = cmd.Args().Get(0)
+	tags = cmd.Args().Get(1)
+	versionID = cmd.String("version-id")
+	withVersions = cmd.Bool("versions")
+	rewind := cmd.String("rewind")
+	recursive = cmd.Bool("recursive")
+	excludeFolders = cmd.Bool("exclude-folders")
 
 	if versionID != "" && (rewind != "" || withVersions) {
 		fatalIf(errDummy().Trace(), "You cannot specify both --version-id and --rewind or --versions flags at the same time")
@@ -173,19 +173,19 @@ func setTagsSingle(ctx context.Context, alias, url, versionID, tags string) *pro
 	return nil
 }
 
-func mainSetTag(cliCtx *cli.Context) error {
+func mainSetTag(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelSetTag := context.WithCancel(globalContext)
 	defer cancelSetTag()
 
 	console.SetColor("List", color.New(color.FgGreen))
 
-	targetURL, versionID, timeRef, withVersions, tags, recursive, excludeFolders := parseSetTagSyntax(cliCtx)
+	targetURL, versionID, timeRef, withVersions, tags, recursive, excludeFolders := parseSetTagSyntax(ctx, cmd)
 	if timeRef.IsZero() && withVersions {
 		timeRef = time.Now().UTC()
 	}
 
 	clnt, err := newClient(targetURL)
-	fatalIf(err.Trace(cliCtx.Args()...), "Unable to initialize target "+targetURL)
+	fatalIf(err.Trace(cmd.Args().Slice()...), "Unable to initialize target "+targetURL)
 
 	alias, urlStr, _ := mustExpandAlias(targetURL)
 	if timeRef.IsZero() && !withVersions && !recursive && !excludeFolders {

@@ -20,23 +20,23 @@ package cmd
 import (
 	"context"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/cmd/ilm"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/cmd/ilm"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var ilmRemoveFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "id",
 		Usage: "id of the lifecycle rule",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "force",
 		Usage: "force flag is to be used when deleting all lifecycle configuration rules for the bucket",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all",
 		Usage: "delete all lifecycle configuration rules of the bucket, force flag enforced",
 	},
@@ -44,7 +44,7 @@ var ilmRemoveFlags = []cli.Flag{
 
 var ilmRmCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove (if any) existing lifecycle configuration rule",
 	Action:       mainILMRemove,
 	OnUsageError: onUsageError,
@@ -94,58 +94,58 @@ func (i ilmRmMessage) JSON() string {
 	return string(msgBytes)
 }
 
-func checkILMRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func checkILMRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 
-	ilmAll := ctx.Bool("all")
-	ilmForce := ctx.Bool("force")
+	ilmAll := cmd.Bool("all")
+	ilmForce := cmd.Bool("force")
 	forceChk := (ilmAll && ilmForce) || (!ilmAll && !ilmForce)
 	if !forceChk {
 		fatalIf(errInvalidArgument(),
-			"It is mandatory to specify --all and --force flag together for mc "+ctx.Command.FullName()+".")
+			"It is mandatory to specify --all and --force flag together for mc "+cmd.FullName()+".")
 	}
 	if ilmAll && ilmForce {
 		return
 	}
 
-	ilmID := ctx.String("id")
+	ilmID := cmd.String("id")
 	if ilmID == "" {
 		fatalIf(errInvalidArgument().Trace(ilmID), "ilm ID cannot be empty")
 	}
 }
 
-func mainILMRemove(cliCtx *cli.Context) error {
+func mainILMRemove(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelILMImport := context.WithCancel(globalContext)
 	defer cancelILMImport()
 
-	checkILMRemoveSyntax(cliCtx)
+	checkILMRemoveSyntax(ctx, cmd)
 	setILMDisplayColorScheme()
-	args := cliCtx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	client, err := newClient(urlStr)
-	fatalIf(err.Trace(args...), "Unable to initialize client for "+urlStr+".")
+	fatalIf(err.Trace(urlStr), "Unable to initialize client for "+urlStr+".")
 
 	ilmCfg, _, err := client.GetLifecycle(ctx)
 	fatalIf(err.Trace(urlStr), "Unable to fetch lifecycle rules")
 
-	ilmAll := cliCtx.Bool("all")
-	ilmForce := cliCtx.Bool("force")
+	ilmAll := cmd.Bool("all")
+	ilmForce := cmd.Bool("force")
 
 	if ilmAll && ilmForce {
 		ilmCfg.Rules = nil // Remove all rules
 	} else {
-		ilmCfg, err = ilm.RemoveILMRule(ilmCfg, cliCtx.String("id"))
-		fatalIf(err.Trace(urlStr, cliCtx.String("id")), "Unable to remove rule by id")
+		ilmCfg, err = ilm.RemoveILMRule(ilmCfg, cmd.String("id"))
+		fatalIf(err.Trace(urlStr, cmd.String("id")), "Unable to remove rule by id")
 	}
 
 	fatalIf(client.SetLifecycle(ctx, ilmCfg).Trace(urlStr), "Unable to set lifecycle rules")
 
 	printMsg(ilmRmMessage{
 		Status: "success",
-		ID:     cliCtx.String("id"),
+		ID:     cmd.String("id"),
 		All:    ilmAll,
 		Target: urlStr,
 	})

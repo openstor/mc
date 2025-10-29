@@ -26,78 +26,78 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // cp command flags.
 var (
 	cpFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "rewind",
 			Usage: "roll back object(s) to current version at specified time",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "version-id, vid",
 			Usage: "select an object version to copy",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "recursive, r",
 			Usage: "copy recursively",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "older-than",
 			Usage: "copy objects older than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "newer-than",
 			Usage: "copy objects newer than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "storage-class, sc",
 			Usage: "set storage class for new object(s) on target",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "attr",
 			Usage: "add custom metadata for the object",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "preserve, a",
 			Usage: "preserve filesystem attributes (mode, ownership, timestamps)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "disable-multipart",
 			Usage: "disable multipart upload feature",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "md5",
 			Usage:  "force all upload(s) to calculate md5sum checksum",
 			Hidden: true,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "tags",
 			Usage: "apply one or more tags to the uploaded objects",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  rmFlag,
 			Usage: "retention mode to be applied on the object (governance, compliance)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  rdFlag,
 			Usage: "retention duration for the object in d days or y years",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  lhFlag,
 			Usage: "apply legal hold to the copied object (on, off)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "zip",
 			Usage: "Extract from remote zip file (MinIO server source only)",
 		},
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "max-workers",
 			Usage: "maximum number of concurrent copies (default: autodetect)",
 		},
@@ -306,7 +306,7 @@ func printCopyURLsError(cpURLs *URLs) {
 	}
 }
 
-func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cli *cli.Context, encryptionKeys map[string][]prefixSSEPair, isMvCmd bool) error {
+func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cmd *cli.Command, encryptionKeys map[string][]prefixSSEPair, isMvCmd bool) error {
 	var isCopied func(string) bool
 	var totalObjects, totalBytes int64
 
@@ -322,21 +322,21 @@ func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cli *cli.
 	} else {
 		pg = newAccounter(totalBytes)
 	}
-	sourceURLs := cli.Args()[:len(cli.Args())-1]
-	targetURL := cli.Args()[len(cli.Args())-1] // Last one is target
+	sourceURLs := cmd.Args().Slice()[:len(cmd.Args().Slice())-1]
+	targetURL := cmd.Args().Slice()[len(cmd.Args().Slice())-1] // Last one is target
 
 	// Check if the target path has object locking enabled
 	withLock, _ := isBucketLockEnabled(ctx, targetURL)
 
-	isRecursive := cli.Bool("recursive")
-	olderThan := cli.String("older-than")
-	newerThan := cli.String("newer-than")
-	rewind := cli.String("rewind")
-	versionID := cli.String("version-id")
-	md5, checksum := parseChecksum(cli)
+	isRecursive := cmd.Bool("recursive")
+	olderThan := cmd.String("older-than")
+	newerThan := cmd.String("newer-than")
+	rewind := cmd.String("rewind")
+	versionID := cmd.String("version-id")
+	md5, checksum := parseChecksum(cmd)
 	if withLock {
 		// The Content-MD5 header is required for any request to upload an object with a retention period configured using Amazon S3 Object Lock.
-		md5, checksum = true, minio.ChecksumNone
+		md5, checksum = true, openstor.ChecksumNone
 	}
 
 	go func() {
@@ -350,7 +350,7 @@ func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cli *cli.
 			newerThan:   newerThan,
 			timeRef:     parseRewindFlag(rewind),
 			versionID:   versionID,
-			isZip:       cli.Bool("zip"),
+			isZip:       cmd.Bool("zip"),
 		}
 
 		for cpURLs := range prepareCopyURLs(ctx, opts) {
@@ -370,7 +370,7 @@ func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cli *cli.
 
 	quitCh := make(chan struct{})
 	statusCh := make(chan URLs)
-	parallel := newParallelManager(statusCh, cli.Int("max-workers"))
+	parallel := newParallelManager(statusCh, cmd.Int("max-workers"))
 
 	go func() {
 		gracefulStop := func() {
@@ -402,30 +402,30 @@ func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cli *cli.
 				cpURLs.TargetContent.UserMetadata = make(map[string]string)
 
 				// Check and handle storage class if passed in command line args
-				if storageClass := cli.String("storage-class"); storageClass != "" {
+				if storageClass := cmd.String("storage-class"); storageClass != "" {
 					cpURLs.TargetContent.StorageClass = storageClass
 				}
 
-				if rm := cli.String(rmFlag); rm != "" {
+				if rm := cmd.String(rmFlag); rm != "" {
 					cpURLs.TargetContent.RetentionMode = rm
 					cpURLs.TargetContent.RetentionEnabled = true
 				}
-				if rd := cli.String(rdFlag); rd != "" {
+				if rd := cmd.String(rdFlag); rd != "" {
 					cpURLs.TargetContent.RetentionDuration = rd
 				}
-				if lh := cli.String(lhFlag); lh != "" {
+				if lh := cmd.String(lhFlag); lh != "" {
 					cpURLs.TargetContent.LegalHold = strings.ToUpper(lh)
 					cpURLs.TargetContent.LegalHoldEnabled = true
 				}
 
-				if tags := cli.String("tags"); tags != "" {
+				if tags := cmd.String("tags"); tags != "" {
 					cpURLs.TargetContent.Metadata["X-Amz-Tagging"] = tags
 				}
 
-				preserve := cli.Bool("preserve")
-				isZip := cli.Bool("zip")
-				if cli.String("attr") != "" {
-					userMetaMap, _ := getMetaDataEntry(cli.String("attr"))
+				preserve := cmd.Bool("preserve")
+				isZip := cmd.Bool("zip")
+				if cmd.String("attr") != "" {
+					userMetaMap, _ := getMetaDataEntry(cmd.String("attr"))
 					for metadataKey, metaDataVal := range userMetaMap {
 						cpURLs.TargetContent.UserMetadata[metadataKey] = metaDataVal
 					}
@@ -433,7 +433,7 @@ func doCopySession(ctx context.Context, cancelCopy context.CancelFunc, cli *cli.
 
 				cpURLs.MD5 = md5
 				cpURLs.checksum = checksum
-				cpURLs.DisableMultipart = cli.Bool("disable-multipart")
+				cpURLs.DisableMultipart = cmd.Bool("disable-multipart")
 
 				// Verify if previously copied, notify progress bar.
 				if isCopied != nil && isCopied(cpURLs.SourceContent.URL.String()) {
@@ -543,23 +543,23 @@ loop:
 }
 
 // mainCopy is the entry point for cp command.
-func mainCopy(cliCtx *cli.Context) error {
+func mainCopy(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelCopy := context.WithCancel(globalContext)
 	defer cancelCopy()
 
-	checkCopySyntax(cliCtx)
+	checkCopySyntax(ctx, cmd)
 	console.SetColor("Copy", color.New(color.FgGreen, color.Bold))
 
 	var err *probe.Error
 
 	// Parse encryption keys per command.
-	encryptionKeyMap, err := validateAndCreateEncryptionKeys(cliCtx)
+	encryptionKeyMap, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	if err != nil {
-		err.Trace(cliCtx.Args()...)
+		err.Trace(cmd.Args().Tail()...)
 	}
 	fatalIf(err, "SSE Error")
 
-	return doCopySession(ctx, cancelCopy, cliCtx, encryptionKeyMap, false)
+	return doCopySession(ctx, cancelCopy, cmd, encryptionKeyMap, false)
 }
 
 type doCopyOpts struct {

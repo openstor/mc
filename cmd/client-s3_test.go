@@ -26,7 +26,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 
-	"github.com/minio/minio-go/v7"
+	"github.com/openstor/openstor-go/v7"
 	checkv1 "gopkg.in/check.v1"
 )
 
@@ -277,17 +277,17 @@ func (s *TestSuite) TestObjectOperations(c *checkv1.C) {
 var testSelectCompressionTypeCases = []struct {
 	opts            SelectObjectOpts
 	object          string
-	compressionType minio.SelectCompressionType
+	compressionType openstor.SelectCompressionType
 }{
-	{SelectObjectOpts{CompressionType: minio.SelectCompressionNONE}, "a.gzip", minio.SelectCompressionNONE},
-	{SelectObjectOpts{CompressionType: minio.SelectCompressionBZIP}, "a.gz", minio.SelectCompressionBZIP},
-	{SelectObjectOpts{}, "t.parquet", minio.SelectCompressionNONE},
-	{SelectObjectOpts{}, "x.csv.gz", minio.SelectCompressionGZIP},
-	{SelectObjectOpts{}, "x.json.bz2", minio.SelectCompressionBZIP},
-	{SelectObjectOpts{}, "b.gz", minio.SelectCompressionGZIP},
-	{SelectObjectOpts{}, "k.bz2", minio.SelectCompressionBZIP},
-	{SelectObjectOpts{}, "a.csv", minio.SelectCompressionNONE},
-	{SelectObjectOpts{}, "a.json", minio.SelectCompressionNONE},
+	{SelectObjectOpts{CompressionType: openstor.SelectCompressionNONE}, "a.gzip", openstor.SelectCompressionNONE},
+	{SelectObjectOpts{CompressionType: openstor.SelectCompressionBZIP}, "a.gz", openstor.SelectCompressionBZIP},
+	{SelectObjectOpts{}, "t.parquet", openstor.SelectCompressionNONE},
+	{SelectObjectOpts{}, "x.csv.gz", openstor.SelectCompressionGZIP},
+	{SelectObjectOpts{}, "x.json.bz2", openstor.SelectCompressionBZIP},
+	{SelectObjectOpts{}, "b.gz", openstor.SelectCompressionGZIP},
+	{SelectObjectOpts{}, "k.bz2", openstor.SelectCompressionBZIP},
+	{SelectObjectOpts{}, "a.csv", openstor.SelectCompressionNONE},
+	{SelectObjectOpts{}, "a.json", openstor.SelectCompressionNONE},
 }
 
 // TestSelectCompressionType - tests compression type returned

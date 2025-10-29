@@ -18,14 +18,16 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserEnableCmd = cli.Command{
+var adminUserEnableCmd = &cli.Command{
 	Name:         "enable",
 	Usage:        "enable user",
 	Action:       mainAdminUserEnable,
@@ -48,20 +50,21 @@ EXAMPLES:
 }
 
 // checkAdminUserEnableSyntax - validate all the passed arguments
-func checkAdminUserEnableSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminUserEnableSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminUserEnable is the handle for "mc admin user enable" command.
-func mainAdminUserEnable(ctx *cli.Context) error {
-	checkAdminUserEnableSyntax(ctx)
+func mainAdminUserEnable(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserEnableSyntax(ctx, cmd)
 
 	console.SetColor("UserMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -69,10 +72,10 @@ func mainAdminUserEnable(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	e := client.SetUserStatus(globalContext, args.Get(1), madmin.AccountEnabled)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to enable user")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to enable user")
 
 	printMsg(userMessage{
-		op:        ctx.Command.Name,
+		op:        cmd.Name,
 		AccessKey: args.Get(1),
 	})
 

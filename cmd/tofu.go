@@ -39,7 +39,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/mc/pkg/probe"
 )
 
 func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, e error) {

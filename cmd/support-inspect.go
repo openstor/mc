@@ -34,12 +34,12 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/madmin-go/v3/estream"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/madmin-go/v4/estream"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -47,7 +47,7 @@ const (
 )
 
 var supportInspectFlags = append(subnetCommonFlags,
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "legacy",
 		Usage: "use the older inspect format",
 	},
@@ -116,24 +116,24 @@ func (t inspectMessage) JSON() string {
 	return string(jsonMessageBytes)
 }
 
-func checkSupportInspectSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportInspectSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainSupportInspect - the entry function of inspect command
-func mainSupportInspect(ctx *cli.Context) error {
+func mainSupportInspect(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkSupportInspectSyntax(ctx)
+	checkSupportInspectSyntax(ctx, cmd)
 
 	setSuccessMessageColor()
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
-	alias, apiKey := initSubnetConnectivity(ctx, aliasedURL, true)
+	alias, apiKey := initSubnetConnectivity(ctx, cmd, aliasedURL, true)
 	if len(apiKey) == 0 {
 		// api key not passed as flag. Check that the cluster is registered.
 		apiKey = validateClusterRegistered(alias, true)
@@ -160,7 +160,7 @@ func mainSupportInspect(ctx *cli.Context) error {
 	}
 
 	var publicKey []byte
-	if !ctx.Bool("legacy") {
+	if !cmd.Bool("legacy") {
 		var e error
 		publicKey, e = os.ReadFile(filepath.Join(mustGetMcConfigDir(), "support_public.pem"))
 		if e != nil && !os.IsNotExist(e) {

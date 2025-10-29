@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
 )
 
 // preparePutURLs - prepares target and source clientURLs for copying.
@@ -107,7 +107,7 @@ func guessPutURLType(ctx context.Context, o prepareCopyURLsOpts) (*copyURLsConte
 			cc.copyType = copyURLsTypeInvalid
 			return cc, probe.NewError(fmt.Errorf("Bucket should not be empty."))
 		}
-		cc.targetContent = s3clnt.objectInfo2ClientContent(bucket, minio.ObjectInfo{
+		cc.targetContent = s3clnt.objectInfo2ClientContent(bucket, openstor.ObjectInfo{
 			Key: bucket,
 		})
 		// If target is a folder, it is Type B.

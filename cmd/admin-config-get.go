@@ -20,16 +20,17 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConfigGetCmd = cli.Command{
@@ -109,26 +110,27 @@ func (u configGetMessage) JSON() string {
 }
 
 // checkAdminConfigGetSyntax - validate all the passed arguments
-func checkAdminConfigGetSyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() || len(ctx.Args()) < 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigGetSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() || args.Len() < 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminConfigGet(ctx *cli.Context) error {
-	checkAdminConfigGetSyntax(ctx)
+func mainAdminConfigGet(ctx context.Context, cmd *cli.Command) error {
+	checkAdminConfigGetSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	if len(ctx.Args()) == 1 {
+	if args.Len() == 1 {
 		// Call get config API
-		hr, e := client.HelpConfigKV(globalContext, "", "", false)
+		hr, e := client.HelpConfigKV(ctx, "", "", false)
 		fatalIf(probe.NewError(e), "Unable to get help for the sub-system")
 
 		// Print
@@ -143,7 +145,7 @@ func mainAdminConfigGet(ctx *cli.Context) error {
 	subSys := strings.Join(args.Tail(), " ")
 
 	// Call get config API
-	buf, e := client.GetConfigKV(globalContext, subSys)
+	buf, e := client.GetConfigKV(ctx, subSys)
 	fatalIf(probe.NewError(e), "Unable to get server '%s' config", args.Tail())
 
 	if globalJSON {

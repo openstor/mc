@@ -20,8 +20,8 @@ package cmd
 import (
 	"sync"
 
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/quick"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/quick"
 )
 
 const (

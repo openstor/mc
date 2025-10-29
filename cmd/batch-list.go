@@ -22,15 +22,15 @@ import (
 	"strings"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
 	"github.com/olekukonko/tablewriter"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var batchListFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "type",
 		Usage: "list all current batch jobs via job type",
 	},
@@ -38,7 +38,7 @@ var batchListFlags = []cli.Flag{
 
 var batchListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list all current batch jobs",
 	Action:       mainBatchList,
 	OnUsageError: onUsageError,
@@ -175,18 +175,18 @@ func (c batchListMessage) JSON() string {
 }
 
 // checkBatchListSyntax - validate all the passed arguments
-func checkBatchListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkBatchListSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainBatchList is the handle for "mc batch create" command.
-func mainBatchList(ctx *cli.Context) error {
-	checkBatchListSyntax(ctx)
+func mainBatchList(ctx context.Context, cmd *cli.Command) error {
+	checkBatchListSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Start a new MinIO Admin Client
@@ -197,7 +197,7 @@ func mainBatchList(ctx *cli.Context) error {
 	defer cancel()
 
 	res, e := adminClient.ListBatchJobs(ctxt, &madmin.ListBatchJobsFilter{
-		ByJobType: ctx.String("type"),
+		ByJobType: cmd.String("type"),
 	})
 	fatalIf(probe.NewError(e), "Unable to list jobs")
 

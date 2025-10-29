@@ -17,17 +17,21 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var ilmTierSubcommands = []cli.Command{
-	adminTierInfoCmd,
-	adminTierListCmd,
-	adminTierAddCmd,
-	adminTierEditCmd,
-	ilmTierUpdateCmd,
-	adminTierVerifyCmd,
-	ilmTierCheckCmd,
-	adminTierRmCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var ilmTierSubcommands = []*cli.Command{
+	&adminTierInfoCmd,
+	&adminTierListCmd,
+	&adminTierAddCmd,
+	&adminTierEditCmd,
+	&ilmTierUpdateCmd,
+	&adminTierVerifyCmd,
+	&ilmTierCheckCmd,
+	&adminTierRmCmd,
 }
 
 var ilmTierCmd = cli.Command{
@@ -36,11 +40,11 @@ var ilmTierCmd = cli.Command{
 	Action:          mainILMTier,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     ilmTierSubcommands,
+	Commands:        ilmTierSubcommands,
 	HideHelpCommand: true,
 }
 
-func mainILMTier(ctx *cli.Context) error {
-	commandNotFound(ctx, ilmTierSubcommands)
+func mainILMTier(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

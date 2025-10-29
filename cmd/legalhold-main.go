@@ -24,36 +24,36 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	minio "github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var legalHoldSubcommands = []cli.Command{
-	legalHoldSetCmd,
-	legalHoldClearCmd,
-	legalHoldInfoCmd,
+var legalHoldSubcommands = []*cli.Command{
+	&legalHoldSetCmd,
+	&legalHoldClearCmd,
+	&legalHoldInfoCmd,
 }
 
 var legalHoldCmd = cli.Command{
-	Name:        "legalhold",
-	Usage:       "manage legal hold for object(s)",
-	Action:      mainLegalHold,
-	Before:      setGlobalsFromContext,
-	Flags:       globalFlags,
-	Subcommands: legalHoldSubcommands,
+	Name:     "legalhold",
+	Usage:    "manage legal hold for object(s)",
+	Action:   mainLegalHold,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	Commands: legalHoldSubcommands,
 }
 
 // Structured message depending on the type of console.
 type legalHoldCmdMessage struct {
-	LegalHold minio.LegalHoldStatus `json:"legalhold"`
-	URLPath   string                `json:"urlpath"`
-	Key       string                `json:"key"`
-	VersionID string                `json:"versionID"`
-	Status    string                `json:"status"`
-	Err       error                 `json:"error,omitempty"`
+	LegalHold openstor.LegalHoldStatus `json:"legalhold"`
+	URLPath   string                   `json:"urlpath"`
+	Key       string                   `json:"key"`
+	VersionID string                   `json:"versionID"`
+	Status    string                   `json:"status"`
+	Err       error                    `json:"error,omitempty"`
 }
 
 // Colorized message for console printing.
@@ -62,7 +62,7 @@ func (l legalHoldCmdMessage) String() string {
 		return console.Colorize("LegalHoldMessageFailure", "Unable to set object legal hold status `"+l.Key+"`. "+l.Err.Error())
 	}
 	op := "set"
-	if l.LegalHold == minio.LegalHoldDisabled {
+	if l.LegalHold == openstor.LegalHoldDisabled {
 		op = "cleared"
 	}
 
@@ -122,7 +122,7 @@ func getBucketLockStatus(ctx context.Context, aliasedURL string) (status string,
 
 	status, _, _, _, err = clnt.GetObjectLockConfig(ctx)
 	if err != nil {
-		errResp := minio.ToErrorResponse(err.ToGoError())
+		errResp := openstor.ToErrorResponse(err.ToGoError())
 		switch {
 		case errResp.Code == "ObjectLockConfigurationNotFoundError":
 			return "", probe.NewError(errObjectLockConfigNotFound)
@@ -136,7 +136,12 @@ func getBucketLockStatus(ctx context.Context, aliasedURL string) (status string,
 }
 
 // main for retention command.
-func mainLegalHold(ctx *cli.Context) error {
-	commandNotFound(ctx, legalHoldSubcommands)
+func mainLegalHold(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range legalHoldSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 }

@@ -18,17 +18,18 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserInfoCmd = cli.Command{
+var adminUserInfoCmd = &cli.Command{
 	Name:         "info",
 	Usage:        "display info of a user",
 	Action:       mainAdminUserInfo,
@@ -51,20 +52,21 @@ EXAMPLES:
 }
 
 // checkAdminUserAddSyntax - validate all the passed arguments
-func checkAdminUserInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminUserInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminUserInfo is the handler for "mc admin user info" command.
-func mainAdminUserInfo(ctx *cli.Context) error {
-	checkAdminUserInfoSyntax(ctx)
+func mainAdminUserInfo(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserInfoSyntax(ctx, cmd)
 
 	console.SetColor("UserMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -72,12 +74,12 @@ func mainAdminUserInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	user, e := client.GetUserInfo(globalContext, args.Get(1))
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get user info")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get user info")
 
 	memberOf := []userGroup{}
 	for _, group := range user.MemberOf {
 		gd, e := client.GetGroupDescription(globalContext, group)
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch group info")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to fetch group info")
 		policies := []string{}
 		if gd.Policy != "" {
 			policies = strings.Split(gd.Policy, ",")
@@ -89,7 +91,7 @@ func mainAdminUserInfo(ctx *cli.Context) error {
 	}
 
 	printMsg(userMessage{
-		op:             ctx.Command.Name,
+		op:             cmd.Name,
 		AccessKey:      args.Get(1),
 		PolicyName:     user.PolicyName,
 		UserStatus:     string(user.Status),

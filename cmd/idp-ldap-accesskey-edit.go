@@ -19,39 +19,40 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/policy"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/policy"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapAccesskeyEditFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "secret-key",
 		Usage: "set a secret key for the  account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "policy",
 		Usage: "path to a JSON policy file",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "name",
 		Usage: "friendly name for the account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "description",
 		Usage: "description for the account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "expiry-duration",
 		Usage: "duration before the access key expires",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "expiry",
 		Usage: "expiry date for the access key",
 	},
@@ -81,20 +82,20 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLdapAccesskeyEdit(ctx *cli.Context) error {
-	return commonAccesskeyEdit(ctx)
+func mainIDPLdapAccesskeyEdit(ctx context.Context, cmd *cli.Command) error {
+	return commonAccesskeyEdit(ctx, cmd)
 }
 
-func commonAccesskeyEdit(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func commonAccesskeyEdit(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	accessKey := args.Get(1)
 
-	opts := accessKeyEditOpts(ctx)
+	opts := accessKeyEditOpts(ctx, cmd)
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
@@ -111,13 +112,13 @@ func commonAccesskeyEdit(ctx *cli.Context) error {
 	return nil
 }
 
-func accessKeyEditOpts(ctx *cli.Context) madmin.UpdateServiceAccountReq {
-	name := ctx.String("name")
-	expVal := ctx.String("expiry")
-	policyPath := ctx.String("policy")
-	secretKey := ctx.String("secret-key")
-	description := ctx.String("description")
-	expDurVal := ctx.Duration("expiry-duration")
+func accessKeyEditOpts(ctx context.Context, cmd *cli.Command) madmin.UpdateServiceAccountReq {
+	name := cmd.String("name")
+	expVal := cmd.String("expiry")
+	policyPath := cmd.String("policy")
+	secretKey := cmd.String("secret-key")
+	description := cmd.String("description")
+	expDurVal := cmd.Duration("expiry-duration")
 
 	if name == "" && expVal == "" && expDurVal == 0 && policyPath == "" && secretKey == "" && description == "" {
 		fatalIf(probe.NewError(errors.New("At least one property must be edited")), "invalid flags")

@@ -18,25 +18,26 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
-	"github.com/minio/pkg/v3/policy"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/openstor/pkg/v3/policy"
+	"github.com/urfave/cli/v3"
 )
 
 var adminUserSvcAcctInfoFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "policy",
 		Usage: "print policy in JSON format",
 	},
 }
 
-var adminUserSvcAcctInfoCmd = cli.Command{
+var adminUserSvcAcctInfoCmd = &cli.Command{
 	Name:         "info",
 	Usage:        "display service account info",
 	Action:       mainAdminUserSvcAcctInfo,
@@ -59,20 +60,21 @@ EXAMPLES:
 }
 
 // checkAdminUserSvcAcctInfoSyntax - validate all the passed arguments
-func checkAdminUserSvcAcctInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAdminUserSvcAcctInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
 // mainAdminUserSvcAcctInfo is the handle for "mc admin user svcacct info" command.
-func mainAdminUserSvcAcctInfo(ctx *cli.Context) error {
-	checkAdminUserSvcAcctInfoSyntax(ctx)
+func mainAdminUserSvcAcctInfo(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserSvcAcctInfoSyntax(ctx, cmd)
 
 	console.SetColor("AccMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	svcAccount := args.Get(1)
 
@@ -81,17 +83,17 @@ func mainAdminUserSvcAcctInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	svcInfo, e := client.InfoServiceAccount(globalContext, svcAccount)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get information of the specified service account")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get information of the specified service account")
 
-	if ctx.Bool("policy") {
+	if cmd.Bool("policy") {
 		if svcInfo.Policy == "" {
-			fatalIf(errDummy().Trace(args...), "No policy found associated to the specified service account. Check the policy of its parent user.")
+			fatalIf(errDummy().Trace(args.Slice()...), "No policy found associated to the specified service account. Check the policy of its parent user.")
 		}
 		p, e := policy.ParseConfig(strings.NewReader(svcInfo.Policy))
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to parse policy.")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to parse policy.")
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", " ")
-		fatalIf(probe.NewError(enc.Encode(p)).Trace(args...), "Unable to write policy to stdout.")
+		fatalIf(probe.NewError(enc.Encode(p)).Trace(args.Slice()...), "Unable to write policy to stdout.")
 		return nil
 	}
 

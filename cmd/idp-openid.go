@@ -17,18 +17,22 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var (
-	idpOpenidSubcommands = []cli.Command{
-		idpOpenidAddCmd,
-		idpOpenidUpdateCmd,
-		idpOpenidRemoveCmd,
-		idpOpenidListCmd,
-		idpOpenidInfoCmd,
-		idpOpenidEnableCmd,
-		idpOpenidDisableCmd,
-		idpOpenIDAccesskeyCmd,
+	idpOpenidSubcommands = []*cli.Command{
+		&idpOpenidAddCmd,
+		&idpOpenidUpdateCmd,
+		&idpOpenidRemoveCmd,
+		&idpOpenidListCmd,
+		&idpOpenidInfoCmd,
+		&idpOpenidEnableCmd,
+		&idpOpenidDisableCmd,
+		&idpOpenIDAccesskeyCmd,
 		// TODO: idpOpenidPolicyCmd,
 	}
 	idpOpenidCmd = cli.Command{
@@ -37,12 +41,12 @@ var (
 		Action:          mainIDPOpenID,
 		Before:          setGlobalsFromContext,
 		Flags:           globalFlags,
-		Subcommands:     idpOpenidSubcommands,
+		Commands:        idpOpenidSubcommands,
 		HideHelpCommand: true,
 	}
 )
 
-func mainIDPOpenID(ctx *cli.Context) error {
-	commandNotFound(ctx, idpOpenidSubcommands)
+func mainIDPOpenID(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

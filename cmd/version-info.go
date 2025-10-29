@@ -23,10 +23,10 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var versionInfoCmd = cli.Command{
@@ -52,9 +52,9 @@ EXAMPLES:
 }
 
 // checkVersionInfoSyntax - validate all the passed arguments
-func checkVersionInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkVersionInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -88,16 +88,16 @@ func (v versioningInfoMessage) String() string {
 	return console.Colorize("versioningInfoMessage", msg)
 }
 
-func mainVersionInfo(cliCtx *cli.Context) error {
+func mainVersionInfo(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelVersioningInfo := context.WithCancel(globalContext)
 	defer cancelVersioningInfo()
 
 	console.SetColor("versioningInfoMessage", color.New(color.FgGreen))
 
-	checkVersionInfoSyntax(cliCtx)
+	checkVersionInfoSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
@@ -105,7 +105,7 @@ func mainVersionInfo(cliCtx *cli.Context) error {
 	vConfig, e := client.GetVersion(ctx)
 	fatalIf(e, "Unable to get versioning info")
 	vMsg := versioningInfoMessage{
-		Op:     cliCtx.Command.Name,
+		Op:     "info",
 		Status: "success",
 		URL:    aliasedURL,
 	}

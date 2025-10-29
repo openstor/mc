@@ -20,7 +20,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
 )
 
 // Row specifies row description and theme

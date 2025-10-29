@@ -24,31 +24,31 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var retentionInfoFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "show retention info recursively",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "show retention info of specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "roll back object(s) to current version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "show retention info on object(s) and all its versions",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "default",
 		Usage: "show bucket default retention mode",
 	},
@@ -89,23 +89,23 @@ EXAMPLES:
 `,
 }
 
-func parseInfoRetentionArgs(cliCtx *cli.Context) (target, versionID string, recursive bool, timeRef time.Time, withVersions, defaultMode bool) {
-	args := cliCtx.Args()
+func parseInfoRetentionArgs(ctx context.Context, cmd *cli.Command) (target, versionID string, recursive bool, timeRef time.Time, withVersions, defaultMode bool) {
+	args := cmd.Args()
 
-	if len(args) != 1 {
-		showCommandHelpAndExit(cliCtx, 1)
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	target = args[0]
+	target = args.Get(0)
 	if target == "" {
 		fatalIf(errInvalidArgument().Trace(), "invalid target url '%v'", target)
 	}
 
-	versionID = cliCtx.String("version-id")
-	timeRef = parseRewindFlag(cliCtx.String("rewind"))
-	withVersions = cliCtx.Bool("versions")
-	recursive = cliCtx.Bool("recursive")
-	defaultMode = cliCtx.Bool("default")
+	versionID = cmd.String("version-id")
+	timeRef = parseRewindFlag(cmd.String("rewind"))
+	withVersions = cmd.Bool("versions")
+	recursive = cmd.Bool("recursive")
+	defaultMode = cmd.Bool("default")
 
 	if defaultMode && (versionID != "" || !timeRef.IsZero() || withVersions || recursive) {
 		fatalIf(errDummy(), "--default flag cannot be specified with any of --version-id, --rewind, --versions, --recursive.")
@@ -116,12 +116,12 @@ func parseInfoRetentionArgs(cliCtx *cli.Context) (target, versionID string, recu
 
 // Structured message depending on the type of console.
 type retentionInfoMessage struct {
-	Mode      minio.RetentionMode `json:"mode"`
-	Until     time.Time           `json:"until"`
-	URLPath   string              `json:"urlpath"`
-	VersionID string              `json:"versionID"`
-	Status    string              `json:"status"`
-	Err       error               `json:"error"`
+	Mode      openstor.RetentionMode `json:"mode"`
+	Until     time.Time              `json:"until"`
+	URLPath   string                 `json:"urlpath"`
+	VersionID string                 `json:"versionID"`
+	Status    string                 `json:"status"`
+	Err       error                  `json:"error"`
 }
 
 type retentionInfoMessageList retentionInfoMessage
@@ -134,7 +134,7 @@ func (m *retentionInfoMessageList) SetStatus(status string) {
 	m.Status = status
 }
 
-func (m *retentionInfoMessageList) SetMode(mode minio.RetentionMode) {
+func (m *retentionInfoMessageList) SetMode(mode openstor.RetentionMode) {
 	m.Mode = mode
 }
 
@@ -155,7 +155,7 @@ func (m retentionInfoMessageList) String() string {
 		retentionField += console.Colorize("RetentionNotFound", "NO RETENTION")
 	} else {
 		exp := ""
-		if m.Mode == minio.Governance {
+		if m.Mode == openstor.Governance {
 			now := time.Now()
 			if now.After(m.Until) {
 				exp = "EXPIRED"
@@ -194,7 +194,7 @@ func (m *retentionInfoMessageRecord) SetStatus(status string) {
 	m.Status = status
 }
 
-func (m *retentionInfoMessageRecord) SetMode(mode minio.RetentionMode) {
+func (m *retentionInfoMessageRecord) SetMode(mode openstor.RetentionMode) {
 	m.Mode = mode
 }
 
@@ -252,7 +252,7 @@ type retentionInfoMsg interface {
 	message
 	SetErr(error)
 	SetStatus(string)
-	SetMode(minio.RetentionMode)
+	SetMode(openstor.RetentionMode)
 	SetUntil(time.Time)
 }
 
@@ -279,7 +279,7 @@ func infoRetentionSingle(ctx context.Context, alias, url, versionID string, list
 
 	mode, until, err := newClnt.GetObjectRetention(ctx, versionID)
 	if err != nil {
-		errResp := minio.ToErrorResponse(err.ToGoError())
+		errResp := openstor.ToErrorResponse(err.ToGoError())
 		if errResp.Code != "NoSuchObjectLockConfiguration" {
 			if _, ok := err.ToGoError().(ObjectNameEmpty); !ok {
 				msg.SetErr(err.ToGoError())
@@ -369,7 +369,7 @@ func getRetention(ctx context.Context, target, versionID string, timeRef time.Ti
 }
 
 // main for retention info command.
-func mainRetentionInfo(cliCtx *cli.Context) error {
+func mainRetentionInfo(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelSetRetention := context.WithCancel(globalContext)
 	defer cancelSetRetention()
 
@@ -379,7 +379,7 @@ func mainRetentionInfo(cliCtx *cli.Context) error {
 	console.SetColor("RetentionExpired", color.New(color.FgRed, color.Bold))
 	console.SetColor("RetentionFailure", color.New(color.FgYellow))
 
-	target, versionID, recursive, rewind, withVersions, bucketMode := parseInfoRetentionArgs(cliCtx)
+	target, versionID, recursive, rewind, withVersions, bucketMode := parseInfoRetentionArgs(ctx, cmd)
 
 	fatalIfBucketLockNotSupported(ctx, target)
 

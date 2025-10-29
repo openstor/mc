@@ -18,15 +18,17 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminGroupListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "display list of groups",
 	Action:       mainAdminGroupList,
 	OnUsageError: onUsageError,
@@ -48,31 +50,37 @@ EXAMPLES:
 }
 
 // checkAdminGroupListSyntax - validate all the passed arguments
-func checkAdminGroupListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminGroupListSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminGroupList is the handle for "mc admin group list" command.
-func mainAdminGroupList(ctx *cli.Context) error {
-	checkAdminGroupListSyntax(ctx)
+func mainAdminGroupList(ctx context.Context, cmd *cli.Command) error {
+	checkAdminGroupListSyntax(ctx, cmd)
 
 	console.SetColor("GroupMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	gs, e := client.ListGroups(globalContext)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to list groups")
+	gs, e := client.ListGroups(ctx)
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to list groups")
 
 	printMsg(groupMessage{
-		op:     ctx.Command.Name,
+		op:     "list",
 		Groups: gs,
 	})
 

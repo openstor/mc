@@ -17,12 +17,16 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminBucketRemoteSubcommands = []cli.Command{
-	adminBucketRemoteAddCmd,
-	adminBucketRemoteEditCmd,
-	adminBucketRemoteRmCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var adminBucketRemoteSubcommands = []*cli.Command{
+	&adminBucketRemoteAddCmd,
+	&adminBucketRemoteEditCmd,
+	&adminBucketRemoteRmCmd,
 }
 
 var adminBucketRemoteCmd = cli.Command{
@@ -31,13 +35,17 @@ var adminBucketRemoteCmd = cli.Command{
 	Action:          mainadminBucketRemote,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminBucketRemoteSubcommands,
+	Commands:        adminBucketRemoteSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainadminBucketRemote is the handle for "mc admin bucket remote" command.
-func mainadminBucketRemote(ctx *cli.Context) error {
-	commandNotFound(ctx, adminBucketRemoteSubcommands)
+func mainadminBucketRemote(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range adminBucketRemoteSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 	// Sub-commands like "add", "ls", "rm" have their own main.
 }

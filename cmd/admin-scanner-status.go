@@ -36,39 +36,39 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/klauspost/compress/zstd"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
 	"github.com/olekukonko/tablewriter"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminScannerInfoFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "nodes",
 		Usage: "show only on matching servers, comma separate multiple",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "n",
 		Usage: "number of requests to run before exiting. 0 for endless",
 		Value: 0,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "interval",
 		Usage: "interval between requests in seconds",
 		Value: 3,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "max-paths",
 		Usage: "maximum number of active paths to show. -1 for unlimited",
 		Value: -1,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "in",
 		Usage: "read previously saved json from file and replay",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "bucket",
 		Usage: "show scan stats about a given bucket",
 	},
@@ -77,7 +77,6 @@ var adminScannerInfoFlags = []cli.Flag{
 var adminScannerInfo = cli.Command{
 	Name:            "status",
 	Aliases:         []string{"info"},
-	HiddenAliases:   true,
 	Usage:           "summarize scanner events on MinIO server in real-time",
 	Action:          mainAdminScannerInfo,
 	OnUsageError:    onUsageError,
@@ -100,12 +99,13 @@ EXAMPLES:
 }
 
 // checkAdminTopAPISyntax - validate all the passed arguments
-func checkAdminScannerInfoSyntax(ctx *cli.Context) {
-	if ctx.String("in") != "" {
+func checkAdminScannerInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.String("in") != "" {
 		return
 	}
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+	args := cmd.Args()
+	if len(args.Slice()) == 0 || len(args.Slice()) > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -192,18 +192,18 @@ func (b bucketScanMsg) JSON() string {
 	return string(jsonMessageBytes)
 }
 
-func mainAdminScannerInfo(ctx *cli.Context) error {
+func mainAdminScannerInfo(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor("Headers", color.New(color.Bold, color.FgHiGreen))
 	console.SetColor("FullScan", color.New(color.Bold, color.FgHiGreen))
 
-	checkAdminScannerInfoSyntax(ctx)
+	checkAdminScannerInfoSyntax(ctx, cmd)
 
-	ui := tea.NewProgram(initScannerMetricsUI(ctx.Int("max-paths")))
+	ui := tea.NewProgram(initScannerMetricsUI(cmd.Int("max-paths")))
 	ctxt, cancel := context.WithCancel(globalContext)
 	defer cancel()
 
 	// Replay from file
-	if inFile := ctx.String("in"); inFile != "" {
+	if inFile := cmd.String("in"); inFile != "" {
 		go func() {
 			if _, e := ui.Run(); e != nil {
 				cancel()
@@ -246,11 +246,12 @@ func mainAdminScannerInfo(ctx *cli.Context) error {
 	}
 
 	// Create a new MinIO Admin Client
-	aliasedURL := ctx.Args().Get(0)
+	args := cmd.Args()
+	aliasedURL := args.Get(0)
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err.Trace(aliasedURL), "Unable to initialize admin client.")
 
-	if bucket := ctx.String("bucket"); bucket != "" {
+	if bucket := cmd.String("bucket"); bucket != "" {
 		bucketStats, err := client.BucketScanInfo(globalContext, bucket)
 		fatalIf(probe.NewError(err).Trace(aliasedURL), "Unable to get bucket stats.")
 		printMsg(bucketScanMsg{Stats: bucketStats})
@@ -259,9 +260,9 @@ func mainAdminScannerInfo(ctx *cli.Context) error {
 
 	opts := madmin.MetricsOptions{
 		Type:     madmin.MetricsScanner,
-		N:        ctx.Int("n"),
-		Interval: time.Duration(ctx.Int("interval")) * time.Second,
-		Hosts:    strings.Split(ctx.String("nodes"), ","),
+		N:        cmd.Int("n"),
+		Interval: time.Duration(cmd.Int("interval")) * time.Second,
+		Hosts:    strings.Split(cmd.String("nodes"), ","),
 		ByHost:   false,
 	}
 	if globalJSON {
@@ -412,40 +413,6 @@ func (m *scannerMetricsUI) View() string {
 	title := metricsTitle
 	ui := metricsUint64
 	addRow("")
-
-	if sc.CurrentCycle == 0 && sc.CurrentStarted.IsZero() && sc.CyclesCompletedAt == nil {
-		addRowF("     "+title("Scanning:")+" %d bucket(s)", sc.OngoingBuckets)
-	} else {
-		const wantCycles = 16
-		if len(sc.CyclesCompletedAt) < 2 {
-			addRow("Last full scan time:             Unknown (not enough data)")
-		} else {
-			addRow("Overall Statistics")
-			addRow("------------------")
-			sort.Slice(sc.CyclesCompletedAt, func(i, j int) bool {
-				return sc.CyclesCompletedAt[i].After(sc.CyclesCompletedAt[j])
-			})
-			if len(sc.CyclesCompletedAt) >= wantCycles {
-				sinceLast := sc.CyclesCompletedAt[0].Sub(sc.CyclesCompletedAt[wantCycles-1])
-				perMonth := float64(30*24*time.Hour) / float64(sinceLast)
-				cycleTime := console.Colorize("metrics-number", fmt.Sprintf("%dd%dh%dm", int(sinceLast.Hours()/24), int(sinceLast.Hours())%24, int(sinceLast.Minutes())%60))
-				perms := console.Colorize("metrics-number", fmt.Sprintf("%.02f", perMonth))
-				addRowF(title("Last full scan time:")+"   %s; Estimated %s/month", cycleTime, perms)
-			} else {
-				sinceLast := sc.CyclesCompletedAt[0].Sub(sc.CyclesCompletedAt[1]) * time.Duration(wantCycles)
-				perMonth := float64(30*24*time.Hour) / float64(sinceLast)
-				cycleTime := console.Colorize("metrics-number", fmt.Sprintf("%dd%dh%dm", int(sinceLast.Hours()/24), int(sinceLast.Hours())%24, int(sinceLast.Minutes())%60))
-				perms := console.Colorize("metrics-number", fmt.Sprintf("%.02f", perMonth))
-				addRowF(title("Est. full scan time:")+"   %s; Estimated %s/month", cycleTime, perms)
-			}
-		}
-		if sc.CurrentCycle > 0 {
-			addRowF(title("Current cycle:")+"         %s; Started: %v", ui(sc.CurrentCycle), console.Colorize("metrics-date", sc.CurrentStarted))
-		} else {
-			addRowF(title("Current cycle:") + "         (between cycles)")
-		}
-	}
-
 	addRowF(title("Active drives:")+" %s", ui(uint64(len(sc.ActivePaths))))
 
 	getRate := func(x madmin.TimedAction) string {

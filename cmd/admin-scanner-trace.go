@@ -22,41 +22,41 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminScannerTraceFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "verbose, v",
 		Usage: "print verbose trace",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "funcname",
 		Usage: "trace only matching func name (eg 'scanner.ScanObject')",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "node",
 		Usage: "trace only matching servers",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "path",
 		Usage: "trace only matching path",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "filter-request",
 		Usage: "trace calls only with request bytes greater than this threshold, use with filter-size",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "filter-response",
 		Usage: "trace calls only with response bytes greater than this threshold, use with filter-size",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "response-duration",
 		Usage: "trace calls only with response duration greater than this threshold (e.g. `5ms`)",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "filter-size",
 		Usage: "filter size, use with filter (see UNITS)",
 	},
@@ -111,24 +111,26 @@ EXAMPLES:
 `,
 }
 
-func checkAdminScannerTraceSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminScannerTraceSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if len(args.Slice()) != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	filterFlag := ctx.Bool("filter-request") || ctx.Bool("filter-response")
-	if filterFlag && ctx.String("filter-size") == "" {
+	filterFlag := cmd.Bool("filter-request") || cmd.Bool("filter-response")
+	if filterFlag && cmd.String("filter-size") == "" {
 		// filter must use with filter-size flags
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
 // mainAdminScannerTrace - the entry function of trace command
-func mainAdminScannerTrace(ctx *cli.Context) error {
+func mainAdminScannerTrace(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkAdminScannerTraceSyntax(ctx)
+	checkAdminScannerTraceSyntax(ctx, cmd)
 
-	verbose := ctx.Bool("verbose")
-	aliasedURL := ctx.Args().Get(0)
+	verbose := cmd.Bool("verbose")
+	args := cmd.Args()
+	aliasedURL := args.Get(0)
 
 	console.SetColor("Stat", color.New(color.FgYellow))
 
@@ -158,10 +160,10 @@ func mainAdminScannerTrace(ctx *cli.Context) error {
 	ctxt, cancel := context.WithCancel(globalContext)
 	defer cancel()
 
-	opts, e := tracingOpts(ctx, []string{"scanner"})
+	opts, e := tracingOpts(ctx, cmd, []string{"scanner"})
 	fatalIf(probe.NewError(e), "Unable to start tracing")
 
-	mopts := matchingOpts(ctx)
+	mopts := matchingOpts(ctx, cmd)
 
 	// Start listening on all trace activity.
 	traceCh := client.ServiceTrace(ctxt, opts)

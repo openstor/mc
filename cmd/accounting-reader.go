@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
 
 	"github.com/cheggaaa/pb"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
 )
 
 // accounter keeps tabs of ongoing data transfer information.

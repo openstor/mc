@@ -24,10 +24,10 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // causeMessage container for golang error messages
@@ -124,7 +124,7 @@ func fatal(err *probe.Error, msg string, data ...interface{}) {
 // after an action. Which woud allow cli package to
 // exit with the specified `exitStatus`.
 func exitStatus(status int) error {
-	return cli.NewExitError("", status)
+	return fmt.Errorf("exit status %d", status)
 }
 
 // errorIf synonymous with fatalIf but doesn't exit on error != nil
@@ -185,8 +185,8 @@ func deprecatedFlagError(oldFlag, newFlag string) {
 	fatal(err, "a deprecated Flag")
 }
 
-func deprecatedFlagsWarning(cliCtx *cli.Context) {
-	for _, v := range cliCtx.Args() {
+func deprecatedFlagsWarning(ctx context.Context, cmd *cli.Command) {
+	for _, v := range cmd.Args().Slice() {
 		switch v {
 		case "--encrypt", "-encrypt":
 			deprecatedFlagError("--encrypt", "--enc-s3 or --enc-kms")

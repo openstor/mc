@@ -30,16 +30,16 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/gzhttp"
-	"github.com/minio/mc/pkg/httptracer"
-	"github.com/minio/mc/pkg/limiter"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/cors"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/minio/minio-go/v7/pkg/encrypt"
-	"github.com/minio/minio-go/v7/pkg/lifecycle"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/env"
+	"github.com/openstor/mc/pkg/httptracer"
+	"github.com/openstor/mc/pkg/limiter"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/openstor-go/v7/pkg/cors"
+	"github.com/openstor/openstor-go/v7/pkg/credentials"
+	"github.com/openstor/openstor-go/v7/pkg/encrypt"
+	"github.com/openstor/openstor-go/v7/pkg/lifecycle"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/env"
 )
 
 // DirOpt - list directory option.
@@ -75,7 +75,7 @@ type PutOptions struct {
 	multipartThreads      uint
 	concurrentStream      bool
 	ifNotExists           bool
-	checksum              minio.ChecksumType
+	checksum              openstor.ChecksumType
 }
 
 // StatOptions holds options of the HEAD operation
@@ -133,8 +133,8 @@ type Client interface {
 	ListBuckets(ctx context.Context) ([]*ClientContent, *probe.Error)
 
 	// Object lock config
-	SetObjectLockConfig(ctx context.Context, mode minio.RetentionMode, validity uint64, unit minio.ValidityUnit) *probe.Error
-	GetObjectLockConfig(ctx context.Context) (status string, mode minio.RetentionMode, validity uint64, unit minio.ValidityUnit, perr *probe.Error)
+	SetObjectLockConfig(ctx context.Context, mode openstor.RetentionMode, validity uint64, unit openstor.ValidityUnit) *probe.Error
+	GetObjectLockConfig(ctx context.Context) (status string, mode openstor.RetentionMode, validity uint64, unit openstor.ValidityUnit, perr *probe.Error)
 
 	// Access policy operations.
 	GetAccess(ctx context.Context) (access, policyJSON string, err *probe.Error)
@@ -152,10 +152,10 @@ type Client interface {
 	Put(ctx context.Context, reader io.Reader, size int64, progress io.Reader, opts PutOptions) (n int64, err *probe.Error)
 
 	// Object Locking related API
-	PutObjectRetention(ctx context.Context, versionID string, mode minio.RetentionMode, retainUntilDate time.Time, bypassGovernance bool) *probe.Error
-	GetObjectRetention(ctx context.Context, versionID string) (minio.RetentionMode, time.Time, *probe.Error)
-	PutObjectLegalHold(ctx context.Context, versionID string, hold minio.LegalHoldStatus) *probe.Error
-	GetObjectLegalHold(ctx context.Context, versionID string) (minio.LegalHoldStatus, *probe.Error)
+	PutObjectRetention(ctx context.Context, versionID string, mode openstor.RetentionMode, retainUntilDate time.Time, bypassGovernance bool) *probe.Error
+	GetObjectRetention(ctx context.Context, versionID string) (openstor.RetentionMode, time.Time, *probe.Error)
+	PutObjectLegalHold(ctx context.Context, versionID string, hold openstor.LegalHoldStatus) *probe.Error
+	GetObjectLegalHold(ctx context.Context, versionID string) (openstor.LegalHoldStatus, *probe.Error)
 
 	// I/O operations with expiration
 	ShareDownload(ctx context.Context, versionID string, expires time.Duration) (string, *probe.Error)
@@ -180,7 +180,7 @@ type Client interface {
 	SetLifecycle(ctx context.Context, config *lifecycle.Configuration) *probe.Error
 
 	// Versioning operations
-	GetVersion(ctx context.Context) (minio.BucketVersioningConfiguration, *probe.Error)
+	GetVersion(ctx context.Context) (openstor.BucketVersioningConfiguration, *probe.Error)
 	SetVersion(ctx context.Context, status string, prefixes []string, excludeFolders bool) *probe.Error
 	// Replication operations
 	GetReplication(ctx context.Context) (replication.Config, *probe.Error)
@@ -239,7 +239,7 @@ type ClientContent struct {
 	IsLatest          bool
 	ReplicationStatus string
 
-	Restore *minio.RestoreInfo
+	Restore *openstor.RestoreInfo
 
 	Err *probe.Error
 }
@@ -256,7 +256,7 @@ type Config struct {
 	AppVersion        string
 	Debug             bool
 	Insecure          bool
-	Lookup            minio.BucketLookupType
+	Lookup            openstor.BucketLookupType
 	ConnReadDeadline  time.Duration
 	ConnWriteDeadline time.Duration
 	UploadLimit       int64
@@ -406,7 +406,7 @@ func (config *Config) initTransport(withS3v2 bool) {
 type SelectObjectOpts struct {
 	InputSerOpts    map[string]map[string]string
 	OutputSerOpts   map[string]map[string]string
-	CompressionType minio.SelectCompressionType
+	CompressionType openstor.SelectCompressionType
 }
 
 type headerTransport struct {

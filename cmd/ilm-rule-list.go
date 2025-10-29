@@ -25,19 +25,19 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/cmd/ilm"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/lifecycle"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/cmd/ilm"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/lifecycle"
+	"github.com/urfave/cli/v3"
 )
 
 var ilmListFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "expiry",
 		Usage: "display only expiration fields",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "transition",
 		Usage: "display only transition fields",
 	},
@@ -45,7 +45,7 @@ var ilmListFlags = []cli.Flag{
 
 var ilmLsCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "lists lifecycle configuration rules set on a bucket",
 	Action:       mainILMList,
 	OnUsageError: onUsageError,
@@ -81,7 +81,7 @@ EXAMPLES:
 type ilmListMessage struct {
 	Status    string                   `json:"status"`
 	Target    string                   `json:"target"`
-	Context   *cli.Context             `json:"-"`
+	Context   *cli.Command             `json:"-"`
 	Config    *lifecycle.Configuration `json:"config"`
 	UpdatedAt time.Time                `json:"updatedAt,omitempty"`
 }
@@ -99,9 +99,9 @@ func (i ilmListMessage) JSON() string {
 }
 
 // validateILMListFlagSet - validates ilm list flags
-func validateILMListFlagSet(ctx *cli.Context) bool {
-	expiryOnly := ctx.Bool("expiry")
-	transitionOnly := ctx.Bool("transition")
+func validateILMListFlagSet(ctx context.Context, cmd *cli.Command) bool {
+	expiryOnly := cmd.Bool("expiry")
+	transitionOnly := cmd.Bool("transition")
 	// Only one of expiry or transition rules can be filtered
 	if expiryOnly && transitionOnly {
 		return false
@@ -110,40 +110,40 @@ func validateILMListFlagSet(ctx *cli.Context) bool {
 }
 
 // checkILMListSyntax - validate arguments passed by a user
-func checkILMListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func checkILMListSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 
-	if !validateILMListFlagSet(ctx) {
-		fatalIf(errInvalidArgument(), "only one display field flag is allowed per ls command. Refer mc "+ctx.Command.FullName()+" --help.")
+	if !validateILMListFlagSet(ctx, cmd) {
+		fatalIf(errInvalidArgument(), "only one display field flag is allowed per ls command. Refer mc "+cmd.FullName()+" --help.")
 	}
 }
 
-func mainILMList(cliCtx *cli.Context) error {
+func mainILMList(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelILMList := context.WithCancel(globalContext)
 	defer cancelILMList()
 
-	checkILMListSyntax(cliCtx)
+	checkILMListSyntax(ctx, cmd)
 	setILMDisplayColorScheme()
 
-	args := cliCtx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	// Note: validateILMListFlagsSet ensures we deal with only valid
 	// combinations here.
 	var filter ilm.LsFilter
-	if v := cliCtx.Bool("expiry"); v {
+	if v := cmd.Bool("expiry"); v {
 		filter = ilm.ExpiryOnly
 	}
-	if v := cliCtx.Bool("transition"); v {
+	if v := cmd.Bool("transition"); v {
 		filter = ilm.TransitionOnly
 	}
 	client, err := newClient(urlStr)
 	fatalIf(err.Trace(urlStr), "Unable to initialize client for "+urlStr)
 
 	ilmCfg, updatedAt, err := client.GetLifecycle(ctx)
-	fatalIf(err.Trace(args...), "Unable to get lifecycle")
+	fatalIf(err.Trace(urlStr), "Unable to get lifecycle")
 
 	if len(ilmCfg.Rules) == 0 {
 		fatalIf(probe.NewError(errors.New("lifecycle configuration not set")).Trace(urlStr),
@@ -157,7 +157,7 @@ func mainILMList(cliCtx *cli.Context) error {
 		printMsg(ilmListMessage{
 			Status:    "success",
 			Target:    urlStr,
-			Context:   cliCtx,
+			Context:   cmd,
 			Config:    ilmCfg,
 			UpdatedAt: updatedAt,
 		})

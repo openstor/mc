@@ -23,35 +23,35 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // put command flags.
 var (
 	putFlags = []cli.Flag{
 		checksumFlag,
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "parallel, P",
 			Usage: "upload number of parts in parallel",
 			Value: 4,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "part-size, s",
 			Usage: "each part size",
 			Value: "16MiB",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "if-not-exists",
 			Usage:  "upload only if object does not exist",
 			Hidden: true,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "disable-multipart",
 			Usage: "disable multipart upload feature",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "storage-class, sc",
 			Usage: "set storage class for new object on target",
 		},
@@ -102,17 +102,17 @@ EXAMPLES:
 }
 
 // mainPut is the entry point for put command.
-func mainPut(cliCtx *cli.Context) (e error) {
-	args := cliCtx.Args()
-	if len(args) < 2 {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code.
+func mainPut(ctx context.Context, cmd *cli.Command) (e error) {
+	args := cmd.Args()
+	if args.Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code.
 	}
 
 	ctx, cancelPut := context.WithCancel(globalContext)
 	defer cancelPut()
 
 	// part size
-	size := cliCtx.String("s")
+	size := cmd.String("s")
 	if size == "" {
 		size = "32MiB"
 	}
@@ -122,31 +122,31 @@ func mainPut(cliCtx *cli.Context) (e error) {
 		fatalIf(probe.NewError(perr), "Unable to parse part size")
 	}
 	// threads
-	threads := cliCtx.Int("P")
+	threads := cmd.Int("P")
 	if threads < 1 {
 		fatalIf(errInvalidArgument().Trace(strconv.Itoa(threads)), "Invalid number of threads")
 	}
 
-	disableMultipart := cliCtx.Bool("disable-multipart")
+	disableMultipart := cmd.Bool("disable-multipart")
 
 	// Parse encryption keys per command.
-	encryptionKeys, err := validateAndCreateEncryptionKeys(cliCtx)
+	encryptionKeys, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	if err != nil {
-		err.Trace(cliCtx.Args()...)
+		err.Trace(cmd.Args().Slice()...)
 	}
 	fatalIf(err, "SSE Error")
-	md5, checksum := parseChecksum(cliCtx)
+	md5, checksum := parseChecksum(cmd)
 
-	if len(args) < 2 {
-		fatalIf(errInvalidArgument().Trace(args...), "Invalid number of arguments.")
+	if args.Len() < 2 {
+		fatalIf(errInvalidArgument().Trace(args.Slice()...), "Invalid number of arguments.")
 	}
 
 	// Check and handle storage class if passed in command line args
-	storageClass := cliCtx.String("sc")
+	storageClass := cmd.String("sc")
 
 	// get source and target
-	sourceURLs := args[:len(args)-1]
-	targetURL := args[len(args)-1]
+	sourceURLs := args.Slice()[:args.Len()-1]
+	targetURL := args.Slice()[args.Len()-1]
 
 	putURLsCh := make(chan URLs, 10000)
 	var totalObjects, totalBytes int64
@@ -207,7 +207,7 @@ func mainPut(cliCtx *cli.Context) (e error) {
 				encryptionKeys:   encryptionKeys,
 				multipartSize:    size,
 				multipartThreads: strconv.Itoa(threads),
-				ifNotExists:      cliCtx.Bool("if-not-exists"),
+				ifNotExists:      cmd.Bool("if-not-exists"),
 			})
 			if urls.Error != nil {
 				showLastProgressBar(pg, urls.Error.ToGoError())

@@ -23,80 +23,69 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/urfave/cli/v3"
 )
 
 const envPrefix = "MC_"
 
 // Collection of mc flags currently supported
 var globalFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:   "config-dir, C",
-		Value:  mustGetMcConfigDir(),
-		Usage:  "path to configuration folder",
-		EnvVar: envPrefix + "CONFIG_DIR",
+	&cli.StringFlag{
+		Name:  "config-dir, C",
+		Value: mustGetMcConfigDir(),
+		Usage: "path to configuration folder",
 	},
-	cli.BoolFlag{
-		Name:   "quiet, q",
-		Usage:  "disable progress bar display",
-		EnvVar: envPrefix + "QUIET",
+	&cli.BoolFlag{
+		Name:  "quiet, q",
+		Usage: "disable progress bar display",
 	},
-	cli.BoolFlag{
-		Name:   "disable-pager, dp",
-		Usage:  "disable mc internal pager and print to raw stdout",
-		EnvVar: envPrefix + globalDisablePagerEnv,
-		Hidden: false,
+	&cli.BoolFlag{
+		Name:  "disable-pager, dp",
+		Usage: "disable mc internal pager and print to raw stdout",
 	},
-	cli.BoolFlag{
-		Name:   "no-color",
-		Usage:  "disable color theme",
-		EnvVar: envPrefix + "NO_COLOR",
+	&cli.BoolFlag{
+		Name:  "no-color",
+		Usage: "disable color theme",
 	},
-	cli.BoolFlag{
-		Name:   "json",
-		Usage:  "enable JSON lines formatted output",
-		EnvVar: envPrefix + "JSON",
+	&cli.BoolFlag{
+		Name:  "json",
+		Usage: "enable JSON lines formatted output",
 	},
-	cli.BoolFlag{
-		Name:   "debug",
-		Usage:  "enable debug output",
-		EnvVar: envPrefix + "DEBUG",
+	&cli.BoolFlag{
+		Name:  "debug",
+		Usage: "enable debug output",
 	},
-	cli.StringSliceFlag{
-		Name:   "resolve",
-		Usage:  "resolves HOST[:PORT] to an IP address. Example: minio.local:9000=10.10.75.1",
-		EnvVar: envPrefix + "RESOLVE",
+	&cli.StringSliceFlag{
+		Name:  "resolve",
+		Usage: "resolves HOST[:PORT] to an IP address. Example: openstor.local:9000=10.10.75.1",
 	},
-	cli.BoolFlag{
-		Name:   "insecure",
-		Usage:  "disable SSL certificate verification",
-		EnvVar: envPrefix + "INSECURE",
+	&cli.BoolFlag{
+		Name:  "insecure",
+		Usage: "disable SSL certificate verification",
 	},
-	cli.StringFlag{
-		Name:   "limit-upload",
-		Usage:  "limits uploads to a maximum rate in KiB/s, MiB/s, GiB/s. (default: unlimited)",
-		EnvVar: envPrefix + "LIMIT_UPLOAD",
+	&cli.StringFlag{
+		Name:  "limit-upload",
+		Usage: "limits uploads to a maximum rate in KiB/s, MiB/s, GiB/s. (default: unlimited)",
 	},
-	cli.StringFlag{
-		Name:   "limit-download",
-		Usage:  "limits downloads to a maximum rate in KiB/s, MiB/s, GiB/s. (default: unlimited)",
-		EnvVar: envPrefix + "LIMIT_DOWNLOAD",
+	&cli.StringFlag{
+		Name:  "limit-download",
+		Usage: "limits downloads to a maximum rate in KiB/s, MiB/s, GiB/s. (default: unlimited)",
 	},
-	cli.DurationFlag{
+	&cli.DurationFlag{
 		Name:   "conn-read-deadline",
 		Usage:  "custom connection READ deadline",
 		Hidden: true,
 		Value:  10 * time.Minute,
 	},
-	cli.DurationFlag{
+	&cli.DurationFlag{
 		Name:   "conn-write-deadline",
 		Usage:  "custom connection WRITE deadline",
 		Hidden: true,
 		Value:  10 * time.Minute,
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "custom-header,H",
 		Usage: "add custom HTTP header to the request. 'key:value' format.",
 	},
@@ -104,9 +93,9 @@ var globalFlags = []cli.Flag{
 
 // bundled encryption flags
 var encFlags = []cli.Flag{
-	encCFlag,
-	encKSMFlag,
-	encS3Flag,
+	&encCFlag,
+	&encKSMFlag,
+	&encS3Flag,
 }
 
 var encCFlag = cli.StringSliceFlag{
@@ -115,41 +104,39 @@ var encCFlag = cli.StringSliceFlag{
 }
 
 var encKSMFlag = cli.StringSliceFlag{
-	Name:   "enc-kms",
-	Usage:  "encrypt/decrypt objects using specific server-side encryption keys. (multiple keys can be provided)",
-	EnvVar: envPrefix + "ENC_KMS",
+	Name:  "enc-kms",
+	Usage: "encrypt/decrypt objects using specific server-side encryption keys. (multiple keys can be provided)",
 }
 
 var encS3Flag = cli.StringSliceFlag{
-	Name:   "enc-s3",
-	Usage:  "encrypt/decrypt objects using server-side default keys and configurations. (multiple keys can be provided).",
-	EnvVar: envPrefix + "ENC_S3",
+	Name:  "enc-s3",
+	Usage: "encrypt/decrypt objects using server-side default keys and configurations. (multiple keys can be provided).",
 }
 
-var checksumFlag = cli.StringFlag{
+var checksumFlag = &cli.StringFlag{
 	Name:  "checksum",
 	Usage: "Add checksum to uploaded object. Values: CRC64NVME, CRC32, CRC32C, SHA1 or SHA256. Requires server trailing headers (AWS, MinIO)",
 	Value: "",
 }
 
-func parseChecksum(ctx *cli.Context) (useMD5 bool, ct minio.ChecksumType) {
+func parseChecksum(ctx *cli.Command) (useMD5 bool, ct openstor.ChecksumType) {
 	useMD5 = ctx.Bool("md5")
 	if cs := ctx.String("checksum"); cs != "" {
 		switch strings.ToUpper(cs) {
 		case "CRC32":
-			ct = minio.ChecksumCRC32
+			ct = openstor.ChecksumCRC32
 		case "CRC32C":
-			ct = minio.ChecksumCRC32C
+			ct = openstor.ChecksumCRC32C
 		case "CRC32-FO":
-			ct = minio.ChecksumFullObjectCRC32
+			ct = openstor.ChecksumFullObjectCRC32
 		case "CRC32C-FO":
-			ct = minio.ChecksumFullObjectCRC32C
+			ct = openstor.ChecksumFullObjectCRC32C
 		case "SHA1":
-			ct = minio.ChecksumSHA1
+			ct = openstor.ChecksumSHA1
 		case "SHA256":
-			ct = minio.ChecksumSHA256
+			ct = openstor.ChecksumSHA256
 		case "CRC64N", "CRC64NVME":
-			ct = minio.ChecksumCRC64NVME
+			ct = openstor.ChecksumCRC64NVME
 		case "MD5":
 			useMD5 = true
 		default:

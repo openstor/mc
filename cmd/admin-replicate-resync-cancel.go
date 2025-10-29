@@ -18,18 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/openstor/madmin-go/v4"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminReplicateResyncCancelCmd = cli.Command{
+var adminReplicateResyncCancelCmd = &cli.Command{
 	Name:         "cancel",
 	Usage:        "cancel ongoing resync operation",
 	Action:       mainAdminReplicateResyncCancel,
@@ -73,17 +75,18 @@ func (m resyncCancelMessage) String() string {
 	return console.Colorize(th, strings.Join(messages, "\n"))
 }
 
-func mainAdminReplicateResyncCancel(ctx *cli.Context) error {
+func mainAdminReplicateResyncCancel(ctx context.Context, cmd *cli.Command) error {
 	// Check argument count
-	argsNr := len(ctx.Args())
+	args := cmd.Args()
+	argsNr := args.Len()
 	if argsNr != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	console.SetColor("ResyncMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args = cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -103,11 +106,11 @@ func mainAdminReplicateResyncCancel(ctx *cli.Context) error {
 		}
 	}
 	if peer.DeploymentID == "" {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"alias provided is not part of cluster replication.")
 	}
 	res, e := client.SiteReplicationResyncOp(globalContext, peer, madmin.SiteResyncCancel)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to cancel replication resync")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to cancel replication resync")
 
 	printMsg(resyncCancelMessage(res))
 

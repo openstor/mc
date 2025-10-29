@@ -18,17 +18,18 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserListCmd = cli.Command{
+var adminUserListCmd = &cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list all users",
 	Action:       mainAdminUserList,
 	OnUsageError: onUsageError,
@@ -50,15 +51,16 @@ EXAMPLES:
 }
 
 // checkAdminUserListSyntax - validate all the passed arguments
-func checkAdminUserListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminUserListSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminUserList is the handle for "mc admin user list" command.
-func mainAdminUserList(ctx *cli.Context) error {
-	checkAdminUserListSyntax(ctx)
+func mainAdminUserList(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserListSyntax(ctx, cmd)
 
 	// Additional command speific theme customization.
 	console.SetColor("UserMessage", color.New(color.FgGreen))
@@ -67,7 +69,7 @@ func mainAdminUserList(ctx *cli.Context) error {
 	console.SetColor("UserStatus", color.New(color.FgCyan))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -75,13 +77,13 @@ func mainAdminUserList(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	users, e := client.ListUsers(globalContext)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to list user")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to list user")
 
 	for k, v := range users {
 		memberOf := []userGroup{}
 		for _, group := range v.MemberOf {
 			gd, e := client.GetGroupDescription(globalContext, group)
-			fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch group info")
+			fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to fetch group info")
 			policies := []string{}
 			if gd.Policy != "" {
 				policies = strings.Split(gd.Policy, ",")
@@ -92,7 +94,7 @@ func mainAdminUserList(ctx *cli.Context) error {
 			})
 		}
 		printMsg(userMessage{
-			op:         ctx.Command.Name,
+			op:         cmd.Name,
 			AccessKey:  k,
 			PolicyName: v.PolicyName,
 			MemberOf:   memberOf,

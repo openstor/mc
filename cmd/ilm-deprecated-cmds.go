@@ -17,7 +17,7 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import "github.com/urfave/cli/v3"
 
 var ilmDepCmds = []cli.Command{
 	ilmDepAddCmd,

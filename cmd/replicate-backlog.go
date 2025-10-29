@@ -33,42 +33,41 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateBacklogFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "arn",
 		Usage: "unique role ARN",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "verbose,v",
 		Usage: "include replicated versions",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "nodes,n",
 		Usage: "show most recent failures for one or more nodes. Valid values are 'all', or node name",
 		Value: "all",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "full,a",
 		Usage: "list and show all replication failures for bucket",
 	},
 }
 
 var replicateBacklogCmd = cli.Command{
-	Name:          "backlog",
-	Aliases:       []string{"diff"},
-	HiddenAliases: true,
-	Usage:         "show unreplicated object versions",
-	Action:        mainReplicateBacklog,
-	OnUsageError:  onUsageError,
-	Before:        setGlobalsFromContext,
-	Flags:         append(globalFlags, replicateBacklogFlags...),
+	Name:         "backlog",
+	Aliases:      []string{"diff"},
+	Usage:        "show unreplicated object versions",
+	Action:       mainReplicateBacklog,
+	OnUsageError: onUsageError,
+	Before:       setGlobalsFromContext,
+	Flags:        append(globalFlags, replicateBacklogFlags...),
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -89,9 +88,9 @@ EXAMPLES:
 }
 
 // checkReplicateBacklogSyntax - validate all the passed arguments
-func checkReplicateBacklogSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateBacklogSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -501,11 +500,11 @@ func (m *replicateBacklogUI) View() string {
 	return sb.String()
 }
 
-func mainReplicateBacklog(cliCtx *cli.Context) error {
-	checkReplicateBacklogSyntax(cliCtx)
+func mainReplicateBacklog(ctx context.Context, cmd *cli.Command) error {
+	checkReplicateBacklogSyntax(ctx, cmd)
 	console.SetColor("diff-msg", color.New(color.FgHiCyan, color.Bold))
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	aliasedURL = filepath.ToSlash(aliasedURL)
 	splits := splitStr(aliasedURL, "/", 3)
@@ -519,8 +518,8 @@ func mainReplicateBacklog(cliCtx *cli.Context) error {
 	// Create a new MinIO Admin Client
 	client, cerr := newAdminClient(aliasedURL)
 	fatalIf(cerr, "Unable to initialize admin connection.")
-	if !cliCtx.Bool("full") {
-		mrfCh := client.BucketReplicationMRF(ctx, bucket, cliCtx.String("nodes"))
+	if !cmd.Bool("full") {
+		mrfCh := client.BucketReplicationMRF(ctx, bucket, cmd.String("nodes"))
 		if globalJSON {
 			for mrf := range mrfCh {
 				if mrf.Err != "" {
@@ -542,8 +541,8 @@ func mainReplicateBacklog(cliCtx *cli.Context) error {
 		return nil
 	}
 
-	verbose := cliCtx.Bool("verbose")
-	arn := cliCtx.String("arn")
+	verbose := cmd.Bool("verbose")
+	arn := cmd.String("arn")
 	diffCh := client.BucketReplicationDiff(ctx, bucket, madmin.ReplDiffOpts{
 		Verbose: verbose,
 		ARN:     arn,

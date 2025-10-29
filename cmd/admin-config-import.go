@@ -18,14 +18,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConfigImportCmd = cli.Command{
@@ -76,20 +77,21 @@ func (u configImportMessage) JSON() string {
 }
 
 // checkAdminConfigImportSyntax - validate all the passed arguments
-func checkAdminConfigImportSyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigImportSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() || args.Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminConfigImport(ctx *cli.Context) error {
-	checkAdminConfigImportSyntax(ctx)
+func mainAdminConfigImport(ctx context.Context, cmd *cli.Command) error {
+	checkAdminConfigImportSyntax(ctx, cmd)
 
 	// Set color preference of command outputs
 	console.SetColor("SetConfigSuccess", color.New(color.FgGreen, color.Bold))
 
 	// Import the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -97,7 +99,7 @@ func mainAdminConfigImport(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	// Call set config API
-	fatalIf(probe.NewError(client.SetConfig(globalContext, os.Stdin)), "Unable to set server config")
+	fatalIf(probe.NewError(client.SetConfig(ctx, os.Stdin)), "Unable to set server config")
 
 	// Print
 	printMsg(configImportMessage{

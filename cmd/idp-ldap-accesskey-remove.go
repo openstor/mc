@@ -18,13 +18,15 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapAccesskeyRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "delete access key pairs for LDAP",
 	Action:       mainIDPLdapAccesskeyRemove,
 	Before:       setGlobalsFromContext,
@@ -45,17 +47,17 @@ EXAMPLES:
 	`,
 }
 
-func mainIDPLdapAccesskeyRemove(ctx *cli.Context) error {
-	return commonAccesskeyRemove(ctx)
+func mainIDPLdapAccesskeyRemove(ctx context.Context, cmd *cli.Command) error {
+	return commonAccesskeyRemove(ctx, cmd)
 }
 
 // No difference between ldap and builtin accesskey remove for now
-func commonAccesskeyRemove(ctx *cli.Context) error {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func commonAccesskeyRemove(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	accessKey := args.Get(1)
 

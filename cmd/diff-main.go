@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // diff specific flags.
@@ -114,18 +114,18 @@ func (d diffMessage) JSON() string {
 	return string(diffJSONBytes)
 }
 
-func checkDiffSyntax(ctx context.Context, cliCtx *cli.Context, encKeyDB map[string][]prefixSSEPair) {
-	if len(cliCtx.Args()) != 2 {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code
+func checkDiffSyntax(ctx context.Context, cmd *cli.Command, encKeyDB map[string][]prefixSSEPair) {
+	if cmd.NArg() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	for _, arg := range cliCtx.Args() {
-		if strings.TrimSpace(arg) == "" {
-			fatalIf(errInvalidArgument().Trace(cliCtx.Args()...), "Unable to validate empty argument.")
+	args := cmd.Args()
+	for i := 0; i < args.Len(); i++ {
+		if strings.TrimSpace(args.Get(i)) == "" {
+			fatalIf(errInvalidArgument().Trace(args.Tail()...), "Unable to validate empty argument.")
 		}
 	}
-	URLs := cliCtx.Args()
-	firstURL := URLs[0]
-	secondURL := URLs[1]
+	firstURL := args.Get(0)
+	secondURL := args.Get(1)
 
 	// Diff only works between two directories, verify them below.
 
@@ -197,16 +197,16 @@ func doDiffMain(ctx context.Context, firstURL, secondURL string) error {
 }
 
 // mainDiff main for 'diff'.
-func mainDiff(cliCtx *cli.Context) error {
+func mainDiff(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelDiff := context.WithCancel(globalContext)
 	defer cancelDiff()
 
 	// Parse encryption keys per command.
-	encKeyDB, err := validateAndCreateEncryptionKeys(cliCtx)
+	encKeyDB, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	fatalIf(err, "Unable to parse encryption keys.")
 
 	// check 'diff' cli arguments.
-	checkDiffSyntax(ctx, cliCtx, encKeyDB)
+	checkDiffSyntax(ctx, cmd, encKeyDB)
 
 	// Additional command specific theme customization.
 	console.SetColor("DiffMessage", color.New(color.FgGreen, color.Bold))
@@ -217,9 +217,9 @@ func mainDiff(cliCtx *cli.Context) error {
 	console.SetColor("DiffMetadata", color.New(color.FgYellow, color.Bold))
 	console.SetColor("DiffMMSourceMTime", color.New(color.FgYellow, color.Bold))
 
-	URLs := cliCtx.Args()
-	firstURL := URLs.Get(0)
-	secondURL := URLs.Get(1)
+	args := cmd.Args()
+	firstURL := args.Get(0)
+	secondURL := args.Get(1)
 
 	return doDiffMain(ctx, firstURL, secondURL)
 }

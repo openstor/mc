@@ -18,13 +18,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const licUnregisterMsgTag = "licenseUnregisterMessage"
@@ -72,18 +73,18 @@ func (li licUnregisterMessage) JSON() string {
 }
 
 // checkLicenseUnregisterSyntax - validate arguments passed by a user
-func checkLicenseUnregisterSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkLicenseUnregisterSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainLicenseUnregister(ctx *cli.Context) error {
+func mainLicenseUnregister(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor(licUnregisterMsgTag, color.New(color.FgGreen, color.Bold))
-	checkLicenseUnregisterSyntax(ctx)
+	checkLicenseUnregisterSyntax(ctx, cmd)
 
-	aliasedURL := ctx.Args().Get(0)
-	alias, apiKey := initSubnetConnectivity(ctx, aliasedURL, true)
+	aliasedURL := cmd.Args().Get(0)
+	alias, apiKey := initSubnetConnectivity(ctx, cmd, aliasedURL, true)
 	if len(apiKey) == 0 {
 		// api key not passed as flag. Check that the cluster is registered.
 		apiKey = validateClusterRegistered(alias, true)

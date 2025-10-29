@@ -23,18 +23,18 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var versionEnableFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "excluded-prefixes",
 		Usage: "exclude versioning on these prefix patterns",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "exclude-folders",
 		Usage: "exclude versioning on folder objects",
 	},
@@ -70,9 +70,9 @@ EXAMPLES:
 }
 
 // checkVersionEnableSyntax - validate all the passed arguments
-func checkVersionEnableSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkVersionEnableSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -99,31 +99,31 @@ func (v versionEnableMessage) String() string {
 	return console.Colorize("versionEnableMessage", fmt.Sprintf("%s versioning is enabled", v.URL))
 }
 
-func mainVersionEnable(cliCtx *cli.Context) error {
+func mainVersionEnable(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelVersionEnable := context.WithCancel(globalContext)
 	defer cancelVersionEnable()
 
 	console.SetColor("versionEnableMessage", color.New(color.FgGreen))
 
-	checkVersionEnableSyntax(cliCtx)
+	checkVersionEnableSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	var excludedPrefixes []string
-	prefixesStr := cliCtx.String("excluded-prefixes")
+	prefixesStr := cmd.String("excluded-prefixes")
 	if prefixesStr != "" {
 		excludedPrefixes = strings.Split(prefixesStr, ",")
 	}
-	excludeFolders := cliCtx.Bool("exclude-folders")
+	excludeFolders := cmd.Bool("exclude-folders")
 
 	// Create a new Client
 	client, err := newClient(aliasedURL)
 	fatalIf(err, "Unable to initialize connection.")
 	fatalIf(client.SetVersion(ctx, "enable", excludedPrefixes, excludeFolders), "Unable to enable versioning")
 	printMsg(versionEnableMessage{
-		Op:     cliCtx.Command.Name,
+		Op:     "enable",
 		Status: "success",
 		URL:    aliasedURL,
 	})

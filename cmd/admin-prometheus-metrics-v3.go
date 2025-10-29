@@ -18,19 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/minio/cli"
-	"github.com/minio/minio-go/v7/pkg/set"
+	"github.com/openstor/openstor-go/v7/pkg/set"
+	"github.com/urfave/cli/v3"
 )
 
 var (
 	metricsV3Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "bucket",
 			Usage: "bucket name to list metrics for. only applicable with api version v3 for metric type 'api, replication'",
 		},
@@ -88,8 +89,8 @@ func validateV3Args(subsys string, bucket string) {
 	}
 }
 
-func printPrometheusMetricsV3(ctx *cli.Context, req prometheusMetricsReq) error {
-	bucket := ctx.String("bucket")
+func printPrometheusMetricsV3(ctx context.Context, cmd *cli.Command, req prometheusMetricsReq) error {
+	bucket := cmd.String("bucket")
 	validateV3Args(req.subsystem, bucket)
 
 	metricsURL := req.aliasURL + getMetricsV3Path(req.subsystem, bucket)

@@ -23,18 +23,18 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var supportTopNetFlags = []cli.Flag{
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "interval",
 		Usage: "interval between requests in seconds",
 		Value: 1,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "n",
 		Usage: "number of requests to run before exiting. 0 for endless (default)",
 		Value: 0,
@@ -44,7 +44,6 @@ var supportTopNetFlags = []cli.Flag{
 var supportTopNetCmd = cli.Command{
 	Name:            "net",
 	Aliases:         []string{"network"},
-	HiddenAliases:   true,
 	Usage:           "show real-time net metrics",
 	Action:          mainSupportTopNet,
 	OnUsageError:    onUsageError,
@@ -67,16 +66,16 @@ EXAMPLES:
 }
 
 // checkSupportTopNetSyntax - validate all the passed arguments
-func checkSupportTopNetSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportTopNetSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainSupportTopNet(ctx *cli.Context) error {
-	checkSupportTopNetSyntax(ctx)
+func mainSupportTopNet(ctx context.Context, cmd *cli.Command) error {
+	checkSupportTopNetSyntax(ctx, cmd)
 
-	aliasedURL := ctx.Args().Get(0)
+	aliasedURL := cmd.Args().Get(0)
 	alias, _ := url2Alias(aliasedURL)
 	validateClusterRegistered(alias, false)
 
@@ -93,8 +92,8 @@ func mainSupportTopNet(ctx *cli.Context) error {
 	// MetricsOptions are options provided to Metrics call.
 	opts := madmin.MetricsOptions{
 		Type:     madmin.MetricNet,
-		Interval: time.Duration(ctx.Int("interval")) * time.Second,
-		N:        ctx.Int("n"),
+		Interval: time.Duration(cmd.Int("interval")) * time.Second,
+		N:        cmd.Int("n"),
 		ByHost:   true,
 	}
 	if globalJSON {

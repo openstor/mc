@@ -18,14 +18,16 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminServiceFreezeCmd = cli.Command{
+var adminServiceFreezeCmd = &cli.Command{
 	Name:         "freeze",
 	Usage:        "freeze S3 API calls on MinIO cluster",
 	Action:       mainAdminServiceFreeze,
@@ -68,29 +70,30 @@ func (s serviceFreezeCommand) JSON() string {
 }
 
 // checkAdminServiceFreezeSyntax - validate all the passed arguments
-func checkAdminServiceFreezeSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminServiceFreezeSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminServiceFreeze(ctx *cli.Context) error {
+func mainAdminServiceFreeze(ctx context.Context, cmd *cli.Command) error {
 	// Validate serivce freeze syntax.
-	checkAdminServiceFreezeSyntax(ctx)
+	checkAdminServiceFreezeSyntax(ctx, cmd)
 
 	// Set color.
 	console.SetColor("ServiceFreeze", color.New(color.FgGreen, color.Bold))
 	console.SetColor("FailedServiceFreeze", color.New(color.FgRed, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	// Freeze the specified MinIO server
-	fatalIf(probe.NewError(client.ServiceFreezeV2(globalContext)), "Unable to freeze the server.")
+	fatalIf(probe.NewError(client.ServiceFreeze(globalContext)), "Unable to freeze the server.")
 
 	// Success..
 	printMsg(serviceFreezeCommand{Status: "success", ServerURL: aliasedURL})

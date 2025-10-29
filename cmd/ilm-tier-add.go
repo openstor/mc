@@ -18,98 +18,99 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"slices"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminTierAddFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "endpoint",
 		Value: "",
 		Usage: "remote tier endpoint. e.g https://s3.amazonaws.com",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "region",
 		Value: "",
 		Usage: "remote tier region. e.g us-west-2",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "access-key",
 		Value: "",
 		Usage: "AWS S3 or compatible object storage access-key",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "secret-key",
 		Value: "",
 		Usage: "AWS S3 or compatible object storage secret-key",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "use-aws-role",
 		Usage: "use AWS S3 role",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "aws-role-arn",
 		Usage: "use AWS S3 role name",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "aws-web-identity-file",
 		Usage: "use AWS S3 web identity file",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "account-name",
 		Value: "",
 		Usage: "Azure Blob Storage account name",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "account-key",
 		Value: "",
 		Usage: "Azure Blob Storage account key",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "az-sp-tenant-id",
 		Value: "",
 		Usage: "Directory ID for the Azure service principal account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "az-sp-client-id",
 		Value: "",
 		Usage: "The client ID of the Azure service principal account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "az-sp-client-secret",
 		Value: "",
 		Usage: "The client secret of the Azure service principal account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "credentials-file",
 		Value: "",
 		Usage: "path to Google Cloud Storage credentials file",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "bucket",
 		Value: "",
 		Usage: "remote tier bucket",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "prefix",
 		Value: "",
 		Usage: "remote tier prefix",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "storage-class",
 		Value: "",
 		Usage: "remote tier storage-class",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "force",
 		Hidden: true,
 		Usage:  "ignores in-use check for remote tier bucket/prefix",
@@ -159,13 +160,13 @@ EXAMPLES:
 }
 
 // checkAdminTierAddSyntax validates all the positional arguments
-func checkAdminTierAddSyntax(ctx *cli.Context) {
-	argsNr := len(ctx.Args())
+func checkAdminTierAddSyntax(ctx context.Context, cmd *cli.Command) {
+	argsNr := cmd.Args().Len()
 	if argsNr < 3 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 	if argsNr > 3 {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+		fatalIf(errInvalidArgument().Trace(cmd.Args().Slice()...),
 			"Incorrect number of arguments for tier add command.")
 	}
 }
@@ -176,31 +177,31 @@ var supportedAWSTierSC = []string{"STANDARD", "REDUCED_REDUNDANCY", "STANDARD_IA
 // fetchTierConfig returns a TierConfig given a tierName, a tierType and ctx to
 // lookup command-line flags from. It exits with non-zero error code if any of
 // the flags contain invalid values.
-func fetchTierConfig(ctx *cli.Context, tierName string, tierType madmin.TierType) *madmin.TierConfig {
+func fetchTierConfig(ctx context.Context, cmd *cli.Command, tierName string, tierType madmin.TierType) *madmin.TierConfig {
 	switch tierType {
 	case madmin.MinIO:
-		accessKey := ctx.String("access-key")
-		secretKey := ctx.String("secret-key")
+		accessKey := cmd.String("access-key")
+		secretKey := cmd.String("secret-key")
 		if accessKey == "" || secretKey == "" {
 			fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("%s remote tier requires access credentials", tierType))
 		}
-		bucket := ctx.String("bucket")
+		bucket := cmd.String("bucket")
 		if bucket == "" {
 			fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("%s remote tier requires target bucket", tierType))
 		}
 
-		endpoint := ctx.String("endpoint")
+		endpoint := cmd.String("endpoint")
 		if endpoint == "" {
 			fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("%s remote tier requires target endpoint", tierType))
 		}
 
 		minioOpts := []madmin.MinIOOptions{}
-		prefix := ctx.String("prefix")
+		prefix := cmd.String("prefix")
 		if prefix != "" {
 			minioOpts = append(minioOpts, madmin.MinIOPrefix(prefix))
 		}
 
-		region := ctx.String("region")
+		region := cmd.String("region")
 		if region != "" {
 			minioOpts = append(minioOpts, madmin.MinIORegion(region))
 		}
@@ -211,11 +212,11 @@ func fetchTierConfig(ctx *cli.Context, tierName string, tierType madmin.TierType
 		return minioCfg
 
 	case madmin.S3:
-		accessKey := ctx.IsSet("access-key")
-		secretKey := ctx.IsSet("secret-key")
-		useAwsRole := ctx.IsSet("use-aws-role")
-		awsRoleArn := ctx.IsSet("aws-role-arn")
-		awsWebIdentity := ctx.IsSet("aws-web-identity-file")
+		accessKey := cmd.IsSet("access-key")
+		secretKey := cmd.IsSet("secret-key")
+		useAwsRole := cmd.IsSet("use-aws-role")
+		awsRoleArn := cmd.IsSet("aws-role-arn")
+		awsWebIdentity := cmd.IsSet("aws-web-identity-file")
 
 		// Extensive flag check
 		switch {
@@ -232,81 +233,81 @@ func fetchTierConfig(ctx *cli.Context, tierName string, tierType madmin.TierType
 
 		}
 
-		bucket := ctx.String("bucket")
+		bucket := cmd.String("bucket")
 		if bucket == "" {
 			fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("%s remote tier requires target bucket", tierType))
 		}
 
 		s3Opts := []madmin.S3Options{}
-		prefix := ctx.String("prefix")
+		prefix := cmd.String("prefix")
 		if prefix != "" {
 			s3Opts = append(s3Opts, madmin.S3Prefix(prefix))
 		}
 
-		endpoint := ctx.String("endpoint")
+		endpoint := cmd.String("endpoint")
 		if endpoint != "" {
 			s3Opts = append(s3Opts, madmin.S3Endpoint(endpoint))
 		}
 
-		region := ctx.String("region")
+		region := cmd.String("region")
 		if region != "" {
 			s3Opts = append(s3Opts, madmin.S3Region(region))
 		}
 
-		s3SC := ctx.String("storage-class")
+		s3SC := cmd.String("storage-class")
 		if s3SC != "" {
 			if !slices.Contains(supportedAWSTierSC, s3SC) {
 				fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("unsupported storage-class type %s", s3SC))
 			}
 			s3Opts = append(s3Opts, madmin.S3StorageClass(s3SC))
 		}
-		if ctx.IsSet("use-aws-role") {
+		if cmd.IsSet("use-aws-role") {
 			s3Opts = append(s3Opts, madmin.S3AWSRole())
 		}
-		if ctx.IsSet("aws-role-arn") {
-			s3Opts = append(s3Opts, madmin.S3AWSRoleARN(ctx.String("aws-role-arn")))
+		if cmd.IsSet("aws-role-arn") {
+			s3Opts = append(s3Opts, madmin.S3AWSRoleARN(cmd.String("aws-role-arn")))
 		}
-		if ctx.IsSet("aws-web-identity-file") {
-			s3Opts = append(s3Opts, madmin.S3AWSRoleWebIdentityTokenFile(ctx.String("aws-web-identity-file")))
+		if cmd.IsSet("aws-web-identity-file") {
+			s3Opts = append(s3Opts, madmin.S3AWSRoleWebIdentityTokenFile(cmd.String("aws-web-identity-file")))
 		}
-		s3Cfg, e := madmin.NewTierS3(tierName, ctx.String("access-key"), ctx.String("secret-key"), bucket, s3Opts...)
+		s3Cfg, e := madmin.NewTierS3(tierName, cmd.String("access-key"), cmd.String("secret-key"), bucket, s3Opts...)
 		fatalIf(probe.NewError(e), "Invalid configuration for AWS S3 compatible remote tier")
 
 		return s3Cfg
 	case madmin.Azure:
-		accountName := ctx.String("account-name")
-		accountKey := ctx.String("account-key")
+		accountName := cmd.String("account-name")
+		accountKey := cmd.String("account-key")
 		if accountName == "" {
 			fatalIf(errDummy().Trace(), fmt.Sprintf("%s remote tier requires the storage account name", tierType))
 		}
 
-		if accountKey == "" && (ctx.String("az-sp-tenant-id") == "" || ctx.String("az-sp-client-id") == "" || ctx.String("az-sp-client-secret") == "") {
+		if accountKey == "" && (cmd.String("az-sp-tenant-id") == "" || cmd.String("az-sp-client-id") == "" || cmd.String("az-sp-client-secret") == "") {
 			fatalIf(errDummy().Trace(), fmt.Sprintf("%s remote tier requires static credentials OR service principal credentials", tierType))
 		}
 
-		bucket := ctx.String("bucket")
+		bucket := cmd.String("bucket")
 		if bucket == "" {
 			fatalIf(errDummy().Trace(), fmt.Sprintf("%s remote tier requires target bucket", tierType))
 		}
 
 		azOpts := []madmin.AzureOptions{}
-		endpoint := ctx.String("endpoint")
+		endpoint := cmd.String("endpoint")
 		if endpoint != "" {
 			azOpts = append(azOpts, madmin.AzureEndpoint(endpoint))
 		}
 
-		region := ctx.String("region")
+		region := cmd.String("region")
 		if region != "" {
 			azOpts = append(azOpts, madmin.AzureRegion(region))
 		}
 
-		prefix := ctx.String("prefix")
+		prefix := cmd.String("prefix")
 		if prefix != "" {
 			azOpts = append(azOpts, madmin.AzurePrefix(prefix))
 		}
 
-		if ctx.String("az-sp-tenant-id") != "" || ctx.String("az-sp-client-id") != "" || ctx.String("az-sp-client-secret") != "" {
-			azOpts = append(azOpts, madmin.AzureServicePrincipal(ctx.String("az-sp-tenant-id"), ctx.String("az-sp-client-id"), ctx.String("az-sp-client-secret")))
+		if cmd.String("az-sp-tenant-id") != "" || cmd.String("az-sp-client-id") != "" || cmd.String("az-sp-client-secret") != "" {
+			azOpts = append(azOpts, madmin.AzureServicePrincipal(cmd.String("az-sp-tenant-id"), cmd.String("az-sp-client-id"), cmd.String("az-sp-client-secret")))
 		}
 
 		azCfg, e := madmin.NewTierAzure(tierName, accountName, accountKey, bucket, azOpts...)
@@ -314,23 +315,23 @@ func fetchTierConfig(ctx *cli.Context, tierName string, tierType madmin.TierType
 
 		return azCfg
 	case madmin.GCS:
-		bucket := ctx.String("bucket")
+		bucket := cmd.String("bucket")
 		if bucket == "" {
 			fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("%s remote requires target bucket", tierType))
 		}
 
 		gcsOpts := []madmin.GCSOptions{}
-		prefix := ctx.String("prefix")
+		prefix := cmd.String("prefix")
 		if prefix != "" {
 			gcsOpts = append(gcsOpts, madmin.GCSPrefix(prefix))
 		}
 
-		region := ctx.String("region")
+		region := cmd.String("region")
 		if region != "" {
 			gcsOpts = append(gcsOpts, madmin.GCSRegion(region))
 		}
 
-		credsPath := ctx.String("credentials-file")
+		credsPath := cmd.String("credentials-file")
 		credsBytes, e := os.ReadFile(credsPath)
 		fatalIf(probe.NewError(e), "Failed to read credentials file")
 
@@ -401,12 +402,12 @@ func (msg *tierMessage) SetTierConfig(sCfg *madmin.TierConfig) {
 	}
 }
 
-func mainAdminTierAdd(ctx *cli.Context) error {
-	checkAdminTierAddSyntax(ctx)
+func mainAdminTierAdd(ctx context.Context, cmd *cli.Command) error {
+	checkAdminTierAddSyntax(ctx, cmd)
 
 	console.SetColor("TierMessage", color.New(color.FgGreen))
 
-	args := ctx.Args()
+	args := cmd.Args()
 	tierTypeStr := args.Get(0)
 	tierType, e := madmin.NewTierType(tierTypeStr)
 	fatalIf(probe.NewError(e), "Unsupported tier type")
@@ -421,16 +422,16 @@ func mainAdminTierAdd(ctx *cli.Context) error {
 	client, cerr := newAdminClient(aliasedURL)
 	fatalIf(cerr, "Unable to initialize admin connection.")
 
-	tCfg := fetchTierConfig(ctx, strings.ToUpper(tierName), tierType)
-	ignoreInUse := ctx.Bool("force")
+	tCfg := fetchTierConfig(ctx, cmd, strings.ToUpper(tierName), tierType)
+	ignoreInUse := cmd.Bool("force")
 	if ignoreInUse {
-		fatalIf(probe.NewError(client.AddTierIgnoreInUse(globalContext, tCfg)).Trace(args...), "Unable to configure remote tier target")
+		fatalIf(probe.NewError(client.AddTierIgnoreInUse(globalContext, tCfg)).Trace(args.Slice()...), "Unable to configure remote tier target")
 	} else {
-		fatalIf(probe.NewError(client.AddTier(globalContext, tCfg)).Trace(args...), "Unable to configure remote tier target")
+		fatalIf(probe.NewError(client.AddTier(globalContext, tCfg)).Trace(args.Slice()...), "Unable to configure remote tier target")
 	}
 
 	msg := &tierMessage{
-		op:     ctx.Command.Name,
+		op:     "add",
 		Status: "success",
 	}
 	msg.SetTierConfig(tCfg)

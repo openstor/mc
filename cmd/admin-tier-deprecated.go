@@ -17,7 +17,36 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
+
+// Wrapper functions for deprecated tier commands
+func mainAdminTierInfoWrapper(ctx context.Context, cmd *cli.Command) error {
+	return mainAdminTierInfo(ctx, cmd)
+}
+
+func mainAdminTierListDeprecated(ctx context.Context, cmd *cli.Command) error {
+	return mainAdminTierList(ctx, cmd)
+}
+
+func mainAdminTierAddDeprecated(ctx context.Context, cmd *cli.Command) error {
+	return mainAdminTierAdd(ctx, cmd)
+}
+
+func mainAdminTierEditDeprecated(ctx context.Context, cmd *cli.Command) error {
+	return mainAdminTierEdit(ctx, cmd)
+}
+
+func mainAdminTierVerifyDeprecated(ctx context.Context, cmd *cli.Command) error {
+	return mainAdminTierVerify(ctx, cmd)
+}
+
+func mainAdminTierRmDeprecated(ctx context.Context, cmd *cli.Command) error {
+	return mainAdminTierRm(ctx, cmd)
+}
 
 var adminTierDepCmds = []cli.Command{
 	adminTierDepInfoCmd,
@@ -32,7 +61,7 @@ var (
 	adminTierDepInfoCmd = cli.Command{
 		Name:         "info",
 		Usage:        "display tier statistics",
-		Action:       mainAdminTierInfo,
+		Action:       mainAdminTierInfoWrapper,
 		Hidden:       true,
 		OnUsageError: onUsageError,
 		Before:       setGlobalsFromContext,
@@ -59,7 +88,7 @@ EXAMPLES:
 	adminTierDepListCmd = cli.Command{
 		Name:         "ls",
 		Usage:        "lists configured remote tier targets",
-		Action:       mainAdminTierList,
+		Action:       mainAdminTierListDeprecated,
 		Hidden:       true,
 		OnUsageError: onUsageError,
 		Before:       setGlobalsFromContext,
@@ -83,7 +112,7 @@ EXAMPLES:
 	adminTierDepAddCmd = cli.Command{
 		Name:         "add",
 		Usage:        "add a new remote tier target",
-		Action:       mainAdminTierAdd,
+		Action:       mainAdminTierAddDeprecated,
 		Hidden:       true,
 		OnUsageError: onUsageError,
 		Before:       setGlobalsFromContext,
@@ -125,7 +154,7 @@ EXAMPLES:
 	adminTierDepEditCmd = cli.Command{
 		Name:         "edit",
 		Usage:        "update an existing remote tier configuration",
-		Action:       mainAdminTierEdit,
+		Action:       mainAdminTierEditDeprecated,
 		Hidden:       true,
 		OnUsageError: onUsageError,
 		Before:       setGlobalsFromContext,
@@ -157,7 +186,7 @@ EXAMPLES:
 	adminTierDepVerifyCmd = cli.Command{
 		Name:         "verify",
 		Usage:        "verifies if remote tier configuration is valid",
-		Action:       mainAdminTierVerify,
+		Action:       mainAdminTierVerifyDeprecated,
 		Hidden:       true,
 		OnUsageError: onUsageError,
 		Before:       setGlobalsFromContext,
@@ -183,7 +212,7 @@ EXAMPLES:
 	adminTierDepRmCmd = cli.Command{
 		Name:         "rm",
 		Usage:        "removes an empty remote tier",
-		Action:       mainAdminTierRm,
+		Action:       mainAdminTierRmDeprecated,
 		Hidden:       true,
 		OnUsageError: onUsageError,
 		Before:       setGlobalsFromContext,

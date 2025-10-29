@@ -17,12 +17,16 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var quotaSubcommands = []cli.Command{
-	quotaSetCmd,
-	quotaInfoCmd,
-	quotaClearCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var quotaSubcommands = []*cli.Command{
+	&quotaSetCmd,
+	&quotaInfoCmd,
+	&quotaClearCmd,
 }
 
 var quotaCmd = cli.Command{
@@ -31,13 +35,18 @@ var quotaCmd = cli.Command{
 	Action:          mainQuota,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     quotaSubcommands,
+	Commands:        quotaSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainQuota is the handle for "mc quota" command.
-func mainQuota(ctx *cli.Context) error {
-	commandNotFound(ctx, quotaSubcommands)
+func mainQuota(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range quotaSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "set", "clear", "info" have their own main.
 }

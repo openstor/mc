@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -25,9 +26,9 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminRebalanceStatusCmd = cli.Command{
@@ -52,12 +53,12 @@ EXAMPLES:
 `,
 }
 
-func mainAdminRebalanceStatus(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainAdminRebalanceStatus(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	if len(args.Slice()) != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
 	aliasedURL := args.Get(0)
 
 	client, err := newAdminClient(aliasedURL)

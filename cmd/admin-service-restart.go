@@ -28,25 +28,25 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var serviceRestartFlag = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "dry-run",
 		Usage: "do not attempt a restart, however verify the peer status",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "wait, w",
 		Usage: "wait for background initializations to complete",
 	},
 }
 
-var adminServiceRestartCmd = cli.Command{
+var adminServiceRestartCmd = &cli.Command{
 	Name:         "restart",
 	Usage:        "restart a MinIO cluster",
 	Action:       mainAdminServiceRestart,
@@ -224,15 +224,15 @@ func (s serviceRestartMessage) JSON() string {
 }
 
 // checkAdminServiceRestartSyntax - validate all the passed arguments
-func checkAdminServiceRestartSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminServiceRestartSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminServiceRestart(ctx *cli.Context) error {
+func mainAdminServiceRestart(ctx context.Context, cmd *cli.Command) error {
 	// Validate serivce restart syntax.
-	checkAdminServiceRestartSyntax(ctx)
+	checkAdminServiceRestartSyntax(ctx, cmd)
 
 	ctxt, cancel := context.WithCancel(globalContext)
 	defer cancel()
@@ -244,14 +244,14 @@ func mainAdminServiceRestart(ctx *cli.Context) error {
 	console.SetColor("FailedServiceRestart", color.New(color.FgRed, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	rowCount := 2
-	toWait := ctx.Bool("wait")
+	toWait := cmd.Bool("wait")
 	if toWait {
 		rowCount = 3
 	}
@@ -265,7 +265,7 @@ func mainAdminServiceRestart(ctx *cli.Context) error {
 		// Restart the specified MinIO server
 		result, e := client.ServiceAction(ctxt, madmin.ServiceActionOpts{
 			Action: madmin.ServiceActionRestart,
-			DryRun: ctx.Bool("dry-run"),
+			DryRun: cmd.Bool("dry-run"),
 		})
 		if e != nil {
 			// Attempt an older API server might be old

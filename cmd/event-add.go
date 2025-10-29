@@ -22,27 +22,27 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var eventAddFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "event",
 		Value: "put,delete,get",
 		Usage: "filter specific type of event. Defaults to all event",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "prefix",
 		Usage: "filter event associated to the specified prefix",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "suffix",
 		Usage: "filter event associated to the specified suffix",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "ignore-existing, p",
 		Usage: "ignore if event already exists",
 	},
@@ -80,9 +80,9 @@ EXAMPLES:
 }
 
 // checkEventAddSyntax - validate all the passed arguments
-func checkEventAddSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkEventAddSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -108,22 +108,22 @@ func (u eventAddMessage) String() string {
 	return msg
 }
 
-func mainEventAdd(cliCtx *cli.Context) error {
+func mainEventAdd(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelEventAdd := context.WithCancel(globalContext)
 	defer cancelEventAdd()
 
 	console.SetColor("Event", color.New(color.FgGreen, color.Bold))
 
-	checkEventAddSyntax(cliCtx)
+	checkEventAddSyntax(ctx, cmd)
 
-	args := cliCtx.Args()
+	args := cmd.Args().Slice()
 	path := args[0]
 	arn := args[1]
-	ignoreExisting := cliCtx.Bool("p")
+	ignoreExisting := cmd.Bool("ignore-existing")
 
-	event := strings.Split(cliCtx.String("event"), ",")
-	prefix := cliCtx.String("prefix")
-	suffix := cliCtx.String("suffix")
+	event := strings.Split(cmd.String("event"), ",")
+	prefix := cmd.String("prefix")
+	suffix := cmd.String("suffix")
 
 	client, err := newClient(path)
 	if err != nil {

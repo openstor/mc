@@ -27,10 +27,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminClusterBucketExportCmd = cli.Command{
@@ -56,19 +56,19 @@ EXAMPLES:
 `,
 }
 
-func checkBucketExportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkBucketExportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainClusterBucketExport -  metadata export command
-func mainClusterBucketExport(ctx *cli.Context) error {
+func mainClusterBucketExport(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkBucketExportSyntax(ctx)
+	checkBucketExportSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	console.SetColor("File", color.New(color.FgWhite, color.Bold))
 

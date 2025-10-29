@@ -25,9 +25,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/wildcard"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/wildcard"
+	"github.com/urfave/cli/v3"
 )
 
 //
@@ -36,14 +36,14 @@ import (
 //   mirror(d1..., d2) -> []mirror(d1/f, d2/d1/f)
 
 // checkMirrorSyntax(URLs []string)
-func checkMirrorSyntax(ctx context.Context, cliCtx *cli.Context, encKeyDB map[string][]prefixSSEPair) (srcURL, tgtURL string) {
-	if len(cliCtx.Args()) != 2 {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code.
+func checkMirrorSyntax(ctx context.Context, cliCtx *cli.Command, encKeyDB map[string][]prefixSSEPair) (srcURL, tgtURL string) {
+	if cliCtx.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cliCtx, 1) // last argument is exit code.
 	}
 	parseChecksum(cliCtx)
 
 	// extract URLs.
-	URLs := cliCtx.Args()
+	URLs := cliCtx.Args().Slice()
 	srcURL = URLs[0]
 	tgtURL = URLs[1]
 
@@ -276,7 +276,7 @@ type mirrorOptions struct {
 	olderThan, newerThan                                  string
 	storageClass                                          string
 	userMetadata                                          map[string]string
-	checksum                                              minio.ChecksumType
+	checksum                                              openstor.ChecksumType
 	sourceListingOnly                                     bool
 	maxWorkers                                            int
 }

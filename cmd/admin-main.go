@@ -17,7 +17,11 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var adminFlags = []cli.Flag{}
 
@@ -35,7 +39,7 @@ var adminCmdSubcommands = []cli.Command{
 	adminInspectCmd,
 	adminUserCmd,
 	adminGroupCmd,
-	adminPolicyCmd,
+	*adminPolicyCmd,
 	adminReplicateCmd,
 	adminIDPCmd,
 	adminConfigCmd,
@@ -60,20 +64,19 @@ var adminCmdSubcommands = []cli.Command{
 }
 
 var adminCmd = cli.Command{
-	Name:            "admin",
-	Usage:           "manage MinIO servers",
-	Action:          mainAdmin,
-	Subcommands:     adminCmdSubcommands,
-	HideHelpCommand: true,
-	Before:          setGlobalsFromContext,
-	Flags:           append(adminFlags, globalFlags...),
+	Name:     "admin",
+	Usage:    "manage MinIO servers",
+	Action:   mainAdmin,
+	HideHelp: true,
+	Before:   setGlobalsFromContext,
+	Flags:    append(adminFlags, globalFlags...),
 }
 
 const dateTimeFormatFilename = "2006-01-02T15-04-05.999999-07-00"
 
 // mainAdmin is the handle for "mc admin" command.
-func mainAdmin(ctx *cli.Context) error {
-	commandNotFound(ctx, adminCmdSubcommands)
+func mainAdmin(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, adminCmdSubcommands)
 	return nil
 	// Sub-commands like "service", "heal", "top" have their own main.
 }

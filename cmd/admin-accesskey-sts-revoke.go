@@ -18,22 +18,24 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var adminAccesskeySTSRevokeFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all",
 		Usage: "revoke all STS accounts for the specified user",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "self",
 		Usage: "revoke all STS accounts for the authenticated user",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "token-type",
 		Usage: "specify the token type to revoke",
 	},
@@ -100,45 +102,46 @@ func (m stsRevokeMessage) JSON() string {
 }
 
 // checkSTSRevokeSyntax - validate all the passed arguments
-func checkSTSRevokeSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) > 2 || len(ctx.Args()) == 0 {
-		showCommandHelpAndExit(ctx, 1)
+func checkSTSRevokeSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() > 2 || args.Len() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	if !ctx.Bool("self") && ctx.Args().Get(1) == "" {
+	if !cmd.Bool("self") && args.Get(1) == "" {
 		fatalIf(errInvalidArgument().Trace(), "Must specify user or use --self flag.")
 	}
 
-	if ctx.Bool("self") && ctx.Args().Get(1) != "" {
+	if cmd.Bool("self") && args.Get(1) != "" {
 		fatalIf(errInvalidArgument().Trace(), "Cannot specify user with --self flag.")
 	}
 
-	if (!ctx.Bool("all") && ctx.String("token-type") == "") || (ctx.Bool("all") && ctx.String("token-type") != "") {
+	if (!cmd.Bool("all") && cmd.String("token-type") == "") || (cmd.Bool("all") && cmd.String("token-type") != "") {
 		fatalIf(errDummy().Trace(), "Exactly one of --all or --token-type must be specified.")
 	}
 }
 
 // mainAdminAccesskeySTSRevoke is the handle for "mc admin accesskey sts-revoke" command.
-func mainAdminAccesskeySTSRevoke(ctx *cli.Context) error {
-	checkSTSRevokeSyntax(ctx)
+func mainAdminAccesskeySTSRevoke(ctx context.Context, cmd *cli.Command) error {
+	checkSTSRevokeSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	user := args.Get(1) // will be empty if --self flag is set
-	tokenRevokeType := ctx.String("token-type")
-	fullRevoke := ctx.Bool("all")
+	tokenRevokeType := cmd.String("token-type")
+	fullRevoke := cmd.Bool("all")
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	e := client.RevokeTokens(globalContext, madmin.RevokeTokensReq{
+	e := client.RevokeTokens(ctx, madmin.RevokeTokensReq{
 		User:            user,
 		TokenRevokeType: tokenRevokeType,
 		FullRevoke:      fullRevoke,
 	})
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to revoke tokens for %s", user)
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to revoke tokens for %s", user)
 
 	printMsg(stsRevokeMessage{
 		User:            user,

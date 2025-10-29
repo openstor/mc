@@ -18,8 +18,10 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var adminTierVerifyCmd = cli.Command{
@@ -48,14 +50,14 @@ EXAMPLES:
 `,
 }
 
-func mainAdminTierVerify(ctx *cli.Context) error {
-	args := ctx.Args()
-	nArgs := len(args)
+func mainAdminTierVerify(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	nArgs := args.Len()
 	if nArgs < 2 {
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 	if nArgs != 2 {
-		fatalIf(errInvalidArgument().Trace(args.Tail()...),
+		fatalIf(errInvalidArgument().Trace(args.Slice()...),
 			"Incorrect number of arguments for tier verify command.")
 	}
 
@@ -70,10 +72,10 @@ func mainAdminTierVerify(ctx *cli.Context) error {
 	fatalIf(cerr, "Unable to initialize admin connection.")
 
 	e := client.VerifyTier(globalContext, tierName)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to verify remote tier target")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to verify remote tier target")
 
 	printMsg(&tierMessage{
-		op:       ctx.Command.Name,
+		op:       "verify",
 		Status:   "success",
 		TierName: tierName,
 	})

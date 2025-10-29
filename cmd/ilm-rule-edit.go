@@ -20,13 +20,13 @@ package cmd
 import (
 	"context"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/cmd/ilm"
-	"github.com/minio/mc/pkg/probe"
-	minio "github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/lifecycle"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/cmd/ilm"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/openstor-go/v7/pkg/lifecycle"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var ilmEditCmd = cli.Command{
@@ -65,15 +65,15 @@ EXAMPLES:
 var ilmEditFlags = append(
 	// Start by showing --id in edit command
 	[]cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "id",
 			Usage: "id of the rule to be modified",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "disable",
 			Usage: "disable the rule",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "enable",
 			Usage: "enable the rule",
 		},
@@ -98,24 +98,24 @@ func (i ilmEditMessage) JSON() string {
 }
 
 // Validate user given arguments
-func checkILMEditSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func checkILMEditSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
-	id := ctx.String("id")
+	id := cmd.String("id")
 	if id == "" {
-		fatalIf(errInvalidArgument(), "ID for lifecycle rule cannot be empty, please refer mc "+ctx.Command.FullName()+" --help for more details")
+		fatalIf(errInvalidArgument(), "ID for lifecycle rule cannot be empty, please refer mc "+cmd.FullName()+" --help for more details")
 	}
 }
 
 // Calls SetBucketLifecycle with the XML representation of lifecycleConfiguration type.
-func mainILMEdit(cliCtx *cli.Context) error {
+func mainILMEdit(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelILMEdit := context.WithCancel(globalContext)
 	defer cancelILMEdit()
 
-	checkILMEditSyntax(cliCtx)
+	checkILMEditSyntax(ctx, cmd)
 	setILMDisplayColorScheme()
-	args := cliCtx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	client, err := newClient(urlStr)
@@ -124,17 +124,17 @@ func mainILMEdit(cliCtx *cli.Context) error {
 	// Configuration that is already set.
 	lfcCfg, _, err := client.GetLifecycle(ctx)
 	if err != nil {
-		if e := err.ToGoError(); minio.ToErrorResponse(e).Code == "NoSuchLifecycleConfiguration" {
+		if e := err.ToGoError(); openstor.ToErrorResponse(e).Code == "NoSuchLifecycleConfiguration" {
 			lfcCfg = lifecycle.NewConfiguration()
 		} else {
-			fatalIf(err.Trace(args...), "Unable to fetch lifecycle rules for "+urlStr)
+			fatalIf(err.Trace(urlStr), "Unable to fetch lifecycle rules for "+urlStr)
 		}
 	}
 
 	// Configuration that needs to be set is returned by ilm.GetILMConfigToSet.
 	// A new rule is added or the rule (if existing) is replaced
-	opts, err := ilm.GetLifecycleOptions(cliCtx)
-	fatalIf(err.Trace(args...), "Unable to generate new lifecycle rules for the input")
+	opts, err := ilm.GetLifecycleOptions(cmd)
+	fatalIf(err.Trace(urlStr), "Unable to generate new lifecycle rules for the input")
 
 	var rule *lifecycle.Rule
 	for i := range lfcCfg.Rules {
@@ -150,7 +150,7 @@ func mainILMEdit(cliCtx *cli.Context) error {
 	}
 
 	err = ilm.ApplyRuleFields(rule, opts)
-	fatalIf(err.Trace(args...), "Unable to generate new lifecycle rules for the input")
+	fatalIf(err.Trace(urlStr), "Unable to generate new lifecycle rules for the input")
 
 	fatalIf(client.SetLifecycle(ctx, lfcCfg).Trace(urlStr), "Unable to set new lifecycle rules")
 

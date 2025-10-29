@@ -18,22 +18,23 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var adminTierCmd = cli.Command{
-	Name:            "tier",
-	Usage:           "manage remote tier targets for ILM transition",
-	Action:          mainAdminTier,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	Hidden:          true,
-	HideHelpCommand: true,
-	Subcommands:     adminTierDepCmds,
+	Name:     "tier",
+	Usage:    "manage remote tier targets for ILM transition",
+	Action:   mainAdminTier,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	Hidden:   true,
+	HideHelp: true,
 }
 
 // mainAdminTier is the handle for "mc admin tier" command.
-func mainAdminTier(_ *cli.Context) error {
+func mainAdminTier(ctx context.Context, cmd *cli.Command) error {
 	deprecatedError("mc ilm tier")
 	return nil
 }

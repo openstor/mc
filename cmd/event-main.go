@@ -17,14 +17,18 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var eventFlags = []cli.Flag{}
 
-var eventSubcommands = []cli.Command{
-	eventAddCmd,
-	eventRemoveCmd,
-	eventListCmd,
+var eventSubcommands = []*cli.Command{
+	&eventAddCmd,
+	&eventRemoveCmd,
+	&eventListCmd,
 }
 
 var eventCmd = cli.Command{
@@ -34,12 +38,16 @@ var eventCmd = cli.Command{
 	Action:          mainEvent,
 	Before:          setGlobalsFromContext,
 	Flags:           append(eventFlags, globalFlags...),
-	Subcommands:     eventSubcommands,
+	Commands:        eventSubcommands,
 }
 
 // mainEvent is the handle for "mc event" command.
-func mainEvent(ctx *cli.Context) error {
-	commandNotFound(ctx, eventSubcommands)
+func mainEvent(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range eventSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 	// Sub-commands like "add", "remove", "list" have their own main.
 }

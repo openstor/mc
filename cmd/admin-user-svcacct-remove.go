@@ -18,15 +18,17 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserSvcAcctRemoveCmd = cli.Command{
+var adminUserSvcAcctRemoveCmd = &cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove a service account",
 	Action:       mainAdminUserSvcAcctRemove,
 	OnUsageError: onUsageError,
@@ -48,20 +50,21 @@ EXAMPLES:
 }
 
 // checkAdminUserSvcAcctRemoveSyntax - validate all the passed arguments
-func checkAdminUserSvcAcctRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAdminUserSvcAcctRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
 // mainAdminUserSvcAcctRemove is the handle for "mc admin user svcacct rm" command.
-func mainAdminUserSvcAcctRemove(ctx *cli.Context) error {
+func mainAdminUserSvcAcctRemove(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor("AccMessage", color.New(color.FgGreen))
 
-	checkAdminUserSvcAcctRemoveSyntax(ctx)
+	checkAdminUserSvcAcctRemoveSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	svcAccount := args.Get(1)
 
@@ -70,7 +73,7 @@ func mainAdminUserSvcAcctRemove(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	e := client.DeleteServiceAccount(globalContext, svcAccount)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to remove the specified service account")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to remove the specified service account")
 
 	printMsg(acctMessage{
 		op:        svcAccOpRemove,

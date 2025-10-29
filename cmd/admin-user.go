@@ -17,9 +17,13 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminUserSubcommands = []cli.Command{
+	"github.com/urfave/cli/v3"
+)
+
+var adminUserSubcommands = []*cli.Command{
 	adminUserAddCmd,
 	adminUserDisableCmd,
 	adminUserEnableCmd,
@@ -32,18 +36,31 @@ var adminUserSubcommands = []cli.Command{
 }
 
 var adminUserCmd = cli.Command{
-	Name:            "user",
-	Usage:           "manage users",
-	Action:          mainAdminUser,
+	Name:  "user",
+	Usage: "manage users",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		// Convert []*cli.Command to []cli.Command
+		var commands []cli.Command
+		for _, c := range adminUserSubcommands {
+			commands = append(commands, *c)
+		}
+		commandNotFound(ctx, cmd, commands)
+		return nil
+	},
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminUserSubcommands,
+	Commands:        adminUserSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainAdminUser is the handle for "mc admin config" command.
-func mainAdminUser(ctx *cli.Context) error {
-	commandNotFound(ctx, adminUserSubcommands)
+func mainAdminUser(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command
+	var commands []cli.Command
+	for _, c := range adminUserSubcommands {
+		commands = append(commands, *c)
+	}
+	commandNotFound(ctx, cmd, commands)
 	return nil
 	// Sub-commands like "get", "set" have their own main.
 }

@@ -24,39 +24,39 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // ls specific flags.
 var (
 	lsFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "rewind",
 			Usage: "list all object versions no later than specified date",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "versions",
 			Usage: "list all versions",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "recursive, r",
 			Usage: "list recursively",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "incomplete, I",
 			Usage: "list incomplete uploads",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "summarize",
 			Usage: "display summary information (number of objects, total size)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "storage-class, sc",
 			Usage: "filter to specified storage class",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "zip",
 			Usage: "list files inside zip archive (MinIO servers only)",
 		},
@@ -158,9 +158,9 @@ func parseRewindFlag(rewind string) (timeRef time.Time) {
 }
 
 // checkListSyntax - validate all the passed arguments
-func checkListSyntax(cliCtx *cli.Context) ([]string, doListOptions) {
-	args := cliCtx.Args()
-	if !cliCtx.Args().Present() {
+func checkListSyntax(ctx context.Context, cmd *cli.Command) ([]string, doListOptions) {
+	args := cmd.Args().Slice()
+	if len(args) == 0 {
 		args = []string{"."}
 	}
 	for _, arg := range args {
@@ -169,18 +169,18 @@ func checkListSyntax(cliCtx *cli.Context) ([]string, doListOptions) {
 		}
 	}
 
-	isRecursive := cliCtx.Bool("recursive")
-	isIncomplete := cliCtx.Bool("incomplete")
-	withVersions := cliCtx.Bool("versions")
-	isSummary := cliCtx.Bool("summarize")
-	listZip := cliCtx.Bool("zip")
+	isRecursive := cmd.Bool("recursive")
+	isIncomplete := cmd.Bool("incomplete")
+	withVersions := cmd.Bool("versions")
+	isSummary := cmd.Bool("summarize")
+	listZip := cmd.Bool("zip")
 
-	timeRef := parseRewindFlag(cliCtx.String("rewind"))
+	timeRef := parseRewindFlag(cmd.String("rewind"))
 
 	if listZip && (withVersions || !timeRef.IsZero()) {
 		fatalIf(errInvalidArgument().Trace(args...), "Zip file listing can only be performed on the latest version")
 	}
-	storageClasss := cliCtx.String("storage-class")
+	storageClasss := cmd.String("storage-class")
 	opts := doListOptions{
 		timeRef:      timeRef,
 		isRecursive:  isRecursive,
@@ -194,7 +194,7 @@ func checkListSyntax(cliCtx *cli.Context) ([]string, doListOptions) {
 }
 
 // mainList - is a handler for mc ls command
-func mainList(cliCtx *cli.Context) error {
+func mainList(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelList := context.WithCancel(globalContext)
 	defer cancelList()
 
@@ -211,7 +211,7 @@ func mainList(cliCtx *cli.Context) error {
 	console.SetColor("SC", color.New(color.FgBlue))
 
 	// check 'ls' cliCtx arguments.
-	args, opts := checkListSyntax(cliCtx)
+	args, opts := checkListSyntax(ctx, cmd)
 
 	var cErr error
 	for _, targetURL := range args {

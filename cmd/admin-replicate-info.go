@@ -18,20 +18,21 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminReplicateInfoCmd = cli.Command{
+var adminReplicateInfoCmd = &cli.Command{
 	Name:         "info",
 	Usage:        "get site replication information",
 	Action:       mainAdminReplicationInfo,
@@ -117,12 +118,13 @@ func (i srInfo) String() string {
 	return console.Colorize("UserMessage", strings.Join(messages, "\n"))
 }
 
-func mainAdminReplicationInfo(ctx *cli.Context) error {
+func mainAdminReplicationInfo(ctx context.Context, cmd *cli.Command) error {
 	{
 		// Check argument count
-		argsNr := len(ctx.Args())
+		args := cmd.Args()
+		argsNr := args.Len()
 		if argsNr != 1 {
-			fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+			fatalIf(errInvalidArgument().Trace(args.Tail()...),
 				"Need exactly one alias argument.")
 		}
 	}
@@ -132,7 +134,7 @@ func mainAdminReplicationInfo(ctx *cli.Context) error {
 	console.SetColor("TDetail", color.New(color.Bold, color.FgCyan))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -140,7 +142,7 @@ func mainAdminReplicationInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	info, e := client.SiteReplicationInfo(globalContext)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get cluster replication information")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get cluster replication information")
 
 	printMsg(srInfo(info))
 

@@ -17,14 +17,18 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var supportTopSubcommands = []cli.Command{
-	supportTopAPICmd,
-	supportTopDriveCmd,
-	supportTopLocksCmd,
-	supportTopNetCmd,
-	supportTopRPCCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var supportTopSubcommands = []*cli.Command{
+	&supportTopAPICmd,
+	&supportTopDriveCmd,
+	&supportTopLocksCmd,
+	&supportTopNetCmd,
+	&supportTopRPCCmd,
 }
 
 var supportTopCmd = cli.Command{
@@ -33,13 +37,18 @@ var supportTopCmd = cli.Command{
 	Action:          mainSupportTop,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     supportTopSubcommands,
+	Commands:        supportTopSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainSupportTop is the handle for "mc support top" command.
-func mainSupportTop(ctx *cli.Context) error {
-	commandNotFound(ctx, supportTopSubcommands)
+func mainSupportTop(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range supportTopSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "locks" have their own main.
 }

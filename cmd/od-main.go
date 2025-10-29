@@ -23,11 +23,11 @@ import (
 	"strings"
 	"time"
 
-	json "github.com/minio/colorjson"
+	json "github.com/openstor/colorjson"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 // make a bucket.
@@ -139,16 +139,16 @@ func odCheckType(ctx context.Context, odURLs URLs, args argKVS) (message, error)
 }
 
 // mainOd is the entry point for the od command.
-func mainOD(cliCtx *cli.Context) error {
+func mainOD(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelCopy := context.WithCancel(globalContext)
 	defer cancelCopy()
 
-	if !cliCtx.Args().Present() {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code
+	if !cmd.Args().Present() {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	var kvsArgs argKVS
-	for _, arg := range cliCtx.Args() {
+	for _, arg := range cmd.Args().Slice() {
 		kv := strings.SplitN(arg, "=", 2)
 		kvsArgs.Set(kv[0], kv[1])
 	}

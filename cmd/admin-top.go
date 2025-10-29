@@ -17,7 +17,11 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var adminTopSubcommands = []cli.Command{
 	adminTopAPICmd,
@@ -25,18 +29,17 @@ var adminTopSubcommands = []cli.Command{
 }
 
 var adminTopCmd = cli.Command{
-	Name:            "top",
-	Usage:           "provide top like statistics for MinIO",
-	Action:          mainAdminTop,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	Subcommands:     adminTopSubcommands,
-	HideHelpCommand: true,
+	Name:     "top",
+	Usage:    "provide top like statistics for MinIO",
+	Action:   mainAdminTop,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	HideHelp: true,
 }
 
 // mainAdminTop is the handle for "mc admin top" command.
-func mainAdminTop(ctx *cli.Context) error {
-	commandNotFound(ctx, adminTopSubcommands)
+func mainAdminTop(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, adminTopSubcommands)
 	return nil
 	// Sub-commands like "locks" have their own main.
 }

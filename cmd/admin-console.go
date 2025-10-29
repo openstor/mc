@@ -18,19 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/minio/cli"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConsoleFlags = []cli.Flag{
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "limit, l",
 		Usage: "show last n log entries",
 		Value: 10,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "type, t",
 		Usage: "list error logs by type. Valid options are '[minio, application, all]'",
 		Value: "all",
@@ -50,21 +51,26 @@ var adminConsoleCmd = cli.Command{
 }
 
 // mainAdminConsole - the entry function of console command
-func mainAdminConsole(ctx *cli.Context) error {
+func mainAdminConsole(ctx context.Context, cmd *cli.Command) error {
 	newCmd := []string{"mc admin logs"}
 
 	var flgStr string
 
-	if ctx.IsSet("limit") {
-		flgStr = fmt.Sprintf("%s %d", "--last", ctx.Int("limit"))
+	if cmd.IsSet("limit") {
+		flgStr = fmt.Sprintf("%s %d", "--last", cmd.Int("limit"))
 		newCmd = append(newCmd, flgStr)
 	}
 
-	if ctx.IsSet("type") {
-		flgStr = fmt.Sprintf("%s %s", "--type", strings.ToLower(ctx.String("type")))
+	if cmd.IsSet("type") {
+		flgStr = fmt.Sprintf("%s %s", "--type", strings.ToLower(cmd.String("type")))
 		newCmd = append(newCmd, flgStr)
 	}
-	newCmd = append(newCmd, ctx.Args()...)
+
+	// Convert cli.Args to []string
+	args := cmd.Args()
+	for i := 0; i < args.Len(); i++ {
+		newCmd = append(newCmd, args.Get(i))
+	}
 
 	deprecatedError(strings.Join(newCmd, " "))
 	return nil

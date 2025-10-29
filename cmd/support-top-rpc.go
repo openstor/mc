@@ -32,29 +32,29 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/klauspost/compress/zstd"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
 	"github.com/olekukonko/tablewriter"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var supportTopRPCFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "nodes",
 		Usage: "collect only metrics from matching servers, comma separate multiple",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "interval",
 		Usage: "interval between requests in seconds",
 		Value: 1,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "n",
 		Usage: "number of requests to run before exiting. 0 for endless (default)",
 		Value: 0,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "in",
 		Usage: "read previously saved json from file and replay",
 	},
@@ -62,7 +62,6 @@ var supportTopRPCFlags = []cli.Flag{
 
 var supportTopRPCCmd = cli.Command{
 	Name:            "rpc",
-	HiddenAliases:   true,
 	Usage:           "show real-time rpc metrics (grid only)",
 	Action:          mainSupportTopRPC,
 	OnUsageError:    onUsageError,
@@ -85,24 +84,24 @@ EXAMPLES:
 }
 
 // checkSupportTopNetSyntax - validate all the passed arguments
-func checkSupportTopRPCSyntax(ctx *cli.Context) {
-	if ctx.String("in") != "" {
+func checkSupportTopRPCSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.String("in") != "" {
 		return
 	}
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainSupportTopRPC(ctx *cli.Context) error {
-	checkSupportTopRPCSyntax(ctx)
+func mainSupportTopRPC(ctx context.Context, cmd *cli.Command) error {
+	checkSupportTopRPCSyntax(ctx, cmd)
 
 	ui := tea.NewProgram(initTopRPCUI())
 	ctxt, cancel := context.WithCancel(globalContext)
 	defer cancel()
 
 	// Replay from file.
-	if inFile := ctx.String("in"); inFile != "" {
+	if inFile := cmd.String("in"); inFile != "" {
 		go func() {
 			defer cancel()
 			if _, e := ui.Run(); e != nil {
@@ -144,7 +143,7 @@ func mainSupportTopRPC(ctx *cli.Context) error {
 		os.Exit(0)
 	}
 
-	aliasedURL := ctx.Args().Get(0)
+	aliasedURL := cmd.Args().Get(0)
 	alias, _ := url2Alias(aliasedURL)
 	validateClusterRegistered(alias, false)
 
@@ -158,9 +157,9 @@ func mainSupportTopRPC(ctx *cli.Context) error {
 	// MetricsOptions are options provided to Metrics call.
 	opts := madmin.MetricsOptions{
 		Type:     madmin.MetricsRPC,
-		Interval: time.Duration(ctx.Int("interval")) * time.Second,
-		N:        ctx.Int("n"),
-		Hosts:    strings.Split(ctx.String("nodes"), ","),
+		Interval: time.Duration(cmd.Int("interval")) * time.Second,
+		N:        cmd.Int("n"),
+		Hosts:    strings.Split(cmd.String("nodes"), ","),
 		ByHost:   true,
 	}
 	if globalJSON {

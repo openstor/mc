@@ -22,14 +22,14 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var batchCancelFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "id",
 		Usage: "job id",
 	},
@@ -78,20 +78,20 @@ func (c batchCancelMessage) JSON() string {
 }
 
 // checkBatchCancelSyntax - validate all the passed arguments
-func checkBatchCancelSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkBatchCancelSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainBatchCancel is the handle for "mc batch cancel" command.
-func mainBatchCancel(ctx *cli.Context) error {
-	checkBatchCancelSyntax(ctx)
+func mainBatchCancel(ctx context.Context, cmd *cli.Command) error {
+	checkBatchCancelSyntax(ctx, cmd)
 
 	console.SetColor("BatchCancel", color.New(color.FgGreen, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	jobID := args.Get(1)
 	// Start a new MinIO Admin Client

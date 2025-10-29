@@ -24,12 +24,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var shareUploadFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "recursively upload any object matching the prefix",
 	},
@@ -76,15 +76,15 @@ func shellQuote(s string) string {
 }
 
 // checkShareUploadSyntax - validate command-line args.
-func checkShareUploadSyntax(ctx *cli.Context) {
-	args := ctx.Args()
-	if !args.Present() {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code.
+func checkShareUploadSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code.
 	}
 
 	// Set command flags from context.
-	isRecursive := ctx.Bool("recursive")
-	expireArg := ctx.String("expire")
+	isRecursive := cmd.Bool("recursive")
+	expireArg := cmd.String("expire")
 
 	// Parse expiry.
 	expiry := shareDefaultExpiry
@@ -104,7 +104,7 @@ func checkShareUploadSyntax(ctx *cli.Context) {
 			"Expiry cannot be larger than 7 days.")
 	}
 
-	for _, targetURL := range ctx.Args() {
+	for _, targetURL := range cmd.Args().Slice() {
 		url := newClientURL(targetURL)
 		if strings.HasSuffix(targetURL, string(url.Separator)) && !isRecursive {
 			fatalIf(errInvalidArgument().Trace(targetURL),
@@ -183,12 +183,12 @@ func doShareUploadURL(ctx context.Context, objectURL string, isRecursive bool, e
 }
 
 // main for share upload command.
-func mainShareUpload(cliCtx *cli.Context) error {
+func mainShareUpload(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelShareDownload := context.WithCancel(globalContext)
 	defer cancelShareDownload()
 
 	// check input arguments.
-	checkShareUploadSyntax(cliCtx)
+	checkShareUploadSyntax(ctx, cmd)
 
 	// Initialize share config folder.
 	initShareConfig()
@@ -197,17 +197,17 @@ func mainShareUpload(cliCtx *cli.Context) error {
 	shareSetColor()
 
 	// Set command flags from context.
-	isRecursive := cliCtx.Bool("recursive")
-	expireArg := cliCtx.String("expire")
+	isRecursive := cmd.Bool("recursive")
+	expireArg := cmd.String("expire")
 	expiry := shareDefaultExpiry
-	contentType := cliCtx.String("content-type")
+	contentType := cmd.String("content-type")
 	if expireArg != "" {
 		var e error
 		expiry, e = time.ParseDuration(expireArg)
 		fatalIf(probe.NewError(e), "Unable to parse expire=`"+expireArg+"`.")
 	}
 
-	for _, targetURL := range cliCtx.Args() {
+	for _, targetURL := range cmd.Args().Slice() {
 		err := doShareUploadURL(ctx, targetURL, isRecursive, expiry, contentType)
 		if err != nil {
 			switch err.ToGoError().(type) {

@@ -18,7 +18,9 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var adminProfileStopCmd = cli.Command{
@@ -28,13 +30,13 @@ var adminProfileStopCmd = cli.Command{
 	OnUsageError:       onUsageError,
 	Before:             setGlobalsFromContext,
 	Flags:              globalFlags,
-	HideHelpCommand:    true,
+	HideHelp:           true,
 	Hidden:             true,
-	CustomHelpTemplate: "Please use 'mc support profile stop'",
+	CustomHelpTemplate: `Please use 'mc support profile stop'`,
 }
 
 // mainAdminProfileStop - the entry function of profile stop command
-func mainAdminProfileStop(_ *cli.Context) error {
+func mainAdminProfileStop(ctx context.Context, cmd *cli.Command) error {
 	deprecatedError("mc support profile stop")
 	return nil
 }

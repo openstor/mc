@@ -18,15 +18,26 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var ilmSubcommands = []cli.Command{
-	ilmRuleCmd,
-	ilmTierCmd,
-	ilmRestoreCmd,
+var ilmSubcommands = []*cli.Command{
+	&ilmRuleCmd,
+	&ilmTierCmd,
+	&ilmRestoreCmd,
+}
+
+// Convert ilmDepCmds from []cli.Command to []*cli.Command
+func getILMDeprecatedCommands() []*cli.Command {
+	var depCmds []*cli.Command
+	for i := range ilmDepCmds {
+		depCmds = append(depCmds, &ilmDepCmds[i])
+	}
+	return depCmds
 }
 
 var ilmCmd = cli.Command{
@@ -36,7 +47,7 @@ var ilmCmd = cli.Command{
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
 	HideHelpCommand: true,
-	Subcommands:     append(ilmSubcommands, ilmDepCmds...),
+	Commands:        append(ilmSubcommands, getILMDeprecatedCommands()...),
 }
 
 const (
@@ -49,8 +60,13 @@ const (
 	ilmThemeResultFailure string = "FailureOp"
 )
 
-func mainILM(ctx *cli.Context) error {
-	commandNotFound(ctx, ilmSubcommands)
+func mainILM(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range ilmSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 }
 

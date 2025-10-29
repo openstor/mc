@@ -23,43 +23,43 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // mv command flags.
 var (
 	mvFlags = []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "recursive, r",
 			Usage: "move recursively",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "older-than",
 			Usage: "move objects older than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "newer-than",
 			Usage: "move objects newer than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "storage-class, sc",
 			Usage: "set storage class for new object(s) on target",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "attr",
 			Usage: "add custom metadata for the object",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "preserve, a",
 			Usage: "preserve filesystem attributes (mode, ownership, timestamps)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "disable-multipart",
 			Usage: "disable multipart upload feature",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "tags",
 			Usage: "apply one or more tags to the uploaded objects",
 		},
@@ -210,15 +210,15 @@ var rmManager = &removeManager{
 }
 
 // mainMove is the entry point for mv command.
-func mainMove(cliCtx *cli.Context) error {
+func mainMove(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelMove := context.WithCancel(globalContext)
 	defer cancelMove()
 
-	checkCopySyntax(cliCtx)
+	checkCopySyntax(ctx, cmd)
 	console.SetColor("Copy", color.New(color.FgGreen, color.Bold))
 
-	if cliCtx.NArg() == 2 {
-		args := cliCtx.Args()
+	if cmd.Args().Len() == 2 {
+		args := cmd.Args()
 		srcURL := args.Get(0)
 		dstURL := args.Get(1)
 		if isURLPrefix(srcURL, dstURL) {
@@ -229,10 +229,10 @@ func mainMove(cliCtx *cli.Context) error {
 
 	var err *probe.Error
 
-	encKeyDB, err := validateAndCreateEncryptionKeys(cliCtx)
+	encKeyDB, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	fatalIf(err, "Unable to parse encryption keys.")
 
-	e := doCopySession(ctx, cancelMove, cliCtx, encKeyDB, true)
+	e := doCopySession(ctx, cancelMove, cmd, encKeyDB, true)
 
 	console.Colorize("Copy", "Waiting for move operations to complete")
 	rmManager.close()

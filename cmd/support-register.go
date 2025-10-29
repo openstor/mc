@@ -18,11 +18,13 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var supportRegisterFlags = append([]cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "name",
 		Usage: "Specify the name to associate to this MinIO cluster in SUBNET",
 	},
@@ -38,7 +40,7 @@ var supportRegisterCmd = cli.Command{
 	CustomHelpTemplate: "Please use 'mc license register'",
 }
 
-func mainSupportRegister(_ *cli.Context) error {
+func mainSupportRegister(ctx context.Context, cmd *cli.Command) error {
 	deprecatedError("mc license register")
 	return nil
 }

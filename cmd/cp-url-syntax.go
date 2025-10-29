@@ -18,35 +18,39 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 
-	"github.com/minio/cli"
+	"github.com/urfave/cli/v3"
 )
 
-func checkCopySyntax(cliCtx *cli.Context) {
-	if len(cliCtx.Args()) < 2 {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code.
+func checkCopySyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.NArg() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code.
 	}
-	parseChecksum(cliCtx)
+	parseChecksum(cmd)
 
 	// extract URLs.
-	URLs := cliCtx.Args()
-	if len(URLs) < 2 {
-		fatalIf(errDummy().Trace(cliCtx.Args()...), "Unable to parse source and target arguments.")
+	args := cmd.Args()
+	if args.Len() < 2 {
+		fatalIf(errDummy().Trace(args.Tail()...), "Unable to parse source and target arguments.")
 	}
 
-	srcURLs := URLs[:len(URLs)-1]
-	tgtURL := URLs[len(URLs)-1]
-	isZip := cliCtx.Bool("zip")
-	versionID := cliCtx.String("version-id")
+	srcURLs := make([]string, args.Len()-1)
+	for i := 0; i < args.Len()-1; i++ {
+		srcURLs[i] = args.Get(i)
+	}
+	tgtURL := args.Get(args.Len() - 1)
+	isZip := cmd.Bool("zip")
+	versionID := cmd.String("version-id")
 
 	if versionID != "" && len(srcURLs) > 1 {
-		fatalIf(errDummy().Trace(cliCtx.Args()...), "Unable to pass --version flag with multiple copy sources arguments.")
+		fatalIf(errDummy().Trace(args.Tail()...), "Unable to pass --version flag with multiple copy sources arguments.")
 	}
 
-	if isZip && cliCtx.String("rewind") != "" {
-		fatalIf(errDummy().Trace(cliCtx.Args()...), "--zip and --rewind cannot be used together")
+	if isZip && cmd.String("rewind") != "" {
+		fatalIf(errDummy().Trace(args.Tail()...), "--zip and --rewind cannot be used together")
 	}
 
 	// Check if bucket name is passed for URL type arguments.
@@ -57,16 +61,16 @@ func checkCopySyntax(cliCtx *cli.Context) {
 		}
 	}
 
-	if cliCtx.String(rdFlag) != "" && cliCtx.String(rmFlag) == "" {
+	if cmd.String(rdFlag) != "" && cmd.String(rmFlag) == "" {
 		fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("Both object retention flags `--%s` and `--%s` are required.\n", rdFlag, rmFlag))
 	}
 
-	if cliCtx.String(rdFlag) == "" && cliCtx.String(rmFlag) != "" {
+	if cmd.String(rdFlag) == "" && cmd.String(rmFlag) != "" {
 		fatalIf(errInvalidArgument().Trace(), fmt.Sprintf("Both object retention flags `--%s` and `--%s` are required.\n", rdFlag, rmFlag))
 	}
 
 	// Preserve functionality not supported for windows
-	if cliCtx.Bool("preserve") && runtime.GOOS == "windows" {
+	if cmd.Bool("preserve") && runtime.GOOS == "windows" {
 		fatalIf(errInvalidArgument().Trace(), "Permissions are not preserved on windows platform.")
 	}
 }

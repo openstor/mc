@@ -18,18 +18,19 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConfigEnvFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "env",
 		Usage: "list all the env only help",
 	},
@@ -91,38 +92,39 @@ func (u configResetMessage) JSON() string {
 }
 
 // checkAdminConfigResetSyntax - validate all the passed arguments
-func checkAdminConfigResetSyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigResetSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // main config set function
-func mainAdminConfigReset(ctx *cli.Context) error {
+func mainAdminConfigReset(ctx context.Context, cmd *cli.Command) error {
 	// Check command arguments
-	checkAdminConfigResetSyntax(ctx)
+	checkAdminConfigResetSyntax(ctx, cmd)
 
 	// Reset color preference of command outputs
 	console.SetColor("ResetConfigSuccess", color.New(color.FgGreen, color.Bold))
 	console.SetColor("ResetConfigFailure", color.New(color.FgRed, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	if len(ctx.Args()) == 1 {
+	if args.Len() == 1 {
 		// Call get config API
-		hr, e := client.HelpConfigKV(globalContext, "", "", ctx.Bool("env"))
+		hr, e := client.HelpConfigKV(ctx, "", "", cmd.Bool("env"))
 		fatalIf(probe.NewError(e), "Unable to get help for the sub-system")
 
 		// Print
 		printMsg(configHelpMessage{
 			Value:   hr,
-			envOnly: ctx.Bool("env"),
+			envOnly: cmd.Bool("env"),
 		})
 
 		return nil
@@ -138,7 +140,7 @@ func mainAdminConfigReset(ctx *cli.Context) error {
 	}
 
 	// Call reset config API
-	restart, e := client.DelConfigKV(globalContext, input)
+	restart, e := client.DelConfigKV(ctx, input)
 	fatalIf(probe.NewError(e), "Unable to reset '%s' on the server", input)
 
 	// Print set config result

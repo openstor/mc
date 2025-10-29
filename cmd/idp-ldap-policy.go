@@ -17,12 +17,16 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var idpLdapPolicySubcommands = []cli.Command{
-	idpLdapPolicyAttachCmd,
-	idpLdapPolicyDetachCmd,
-	idpLdapPolicyEntitiesCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var idpLdapPolicySubcommands = []*cli.Command{
+	&idpLdapPolicyAttachCmd,
+	&idpLdapPolicyDetachCmd,
+	&idpLdapPolicyEntitiesCmd,
 }
 
 var idpLdapPolicyCmd = cli.Command{
@@ -31,11 +35,11 @@ var idpLdapPolicyCmd = cli.Command{
 	Action:          mainIDPLDAPPolicy,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     idpLdapPolicySubcommands,
+	Commands:        idpLdapPolicySubcommands,
 	HideHelpCommand: true,
 }
 
-func mainIDPLDAPPolicy(ctx *cli.Context) error {
-	commandNotFound(ctx, idpLdapPolicySubcommands)
+func mainIDPLDAPPolicy(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

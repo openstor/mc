@@ -18,14 +18,16 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminServiceStopCmd = cli.Command{
+var adminServiceStopCmd = &cli.Command{
 	Name:         "stop",
 	Usage:        "stop a MinIO cluster",
 	Action:       mainAdminServiceStop,
@@ -68,28 +70,29 @@ func (s serviceStopMessage) JSON() string {
 }
 
 // checkAdminServiceStopSyntax - validate all the passed arguments
-func checkAdminServiceStopSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminServiceStopSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() == 0 || args.Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminServiceStop(ctx *cli.Context) error {
+func mainAdminServiceStop(ctx context.Context, cmd *cli.Command) error {
 	// Validate serivce stop syntax.
-	checkAdminServiceStopSyntax(ctx)
+	checkAdminServiceStopSyntax(ctx, cmd)
 
 	// Set color.
 	console.SetColor("ServiceStop", color.New(color.FgGreen, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	// Stop the specified MinIO server
-	fatalIf(probe.NewError(client.ServiceStopV2(globalContext)), "Unable to stop the server.")
+	fatalIf(probe.NewError(client.ServiceStop(globalContext)), "Unable to stop the server.")
 
 	// Success..
 	printMsg(serviceStopMessage{Status: "success", ServerURL: aliasedURL})

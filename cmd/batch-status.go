@@ -11,12 +11,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
 	"github.com/olekukonko/tablewriter"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var batchStatusCmd = cli.Command{
@@ -61,17 +61,17 @@ func (c batchJobStatusMessage) String() string {
 }
 
 // checkBatchStatusSyntax - validate all the passed arguments
-func checkBatchStatusSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkBatchStatusSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainBatchStatus(ctx *cli.Context) error {
-	checkBatchStatusSyntax(ctx)
+func mainBatchStatus(ctx context.Context, cmd *cli.Command) error {
+	checkBatchStatusSyntax(ctx, cmd)
 
-	aliasedURL := ctx.Args().Get(0)
-	jobID := ctx.Args().Get(1)
+	aliasedURL := cmd.Args().Get(0)
+	jobID := cmd.Args().Get(1)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
@@ -150,7 +150,7 @@ func mainBatchStatus(ctx *cli.Context) error {
 				}
 			})
 			if e != nil && !errors.Is(e, context.Canceled) {
-				fatalIf(probe.NewError(e).Trace(ctx.Args()...), "Unable to get current batch status")
+				fatalIf(probe.NewError(e).Trace(cmd.Args().Tail()...), "Unable to get current batch status")
 			}
 		}()
 	}

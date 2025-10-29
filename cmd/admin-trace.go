@@ -37,85 +37,85 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/klauspost/compress/zstd"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminTraceFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "verbose, v",
 		Usage: "print verbose trace",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all, a",
 		Usage: "trace all call types",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "call",
 		Usage: "trace only matching call types. See CALL TYPES below for list. (default: s3)",
 	},
-	cli.IntSliceFlag{
+	&cli.IntSliceFlag{
 		Name:  "status-code",
 		Usage: "trace only matching status code",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "method",
 		Usage: "trace only matching HTTP method",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "funcname",
 		Usage: "trace only matching func name",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "path",
 		Usage: "trace only matching path",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "node",
 		Usage: "trace only matching servers",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "request-header",
 		Usage: "trace only matching request headers",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "request-query",
 		Usage: "trace only matching request queries",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "errors, e",
 		Usage: "trace only failed requests",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "stats",
 		Usage: "print statistical summary of all the traced calls",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:   "stats-n",
 		Usage:  "maximum number of stat entries",
 		Value:  20,
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "filter-request",
 		Usage: "trace calls only with request bytes greater than this threshold, use with filter-size",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "filter-response",
 		Usage: "trace calls only with response bytes greater than this threshold, use with filter-size",
 	},
-	cli.DurationFlag{
+	&cli.DurationFlag{
 		Name:  "response-duration",
 		Usage: "trace calls only with response duration greater than this threshold (e.g. `5ms`)",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "filter-size",
 		Usage: "filter size, use with filter (see UNITS)",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "in",
 		Usage: "read previously saved json from file and replay",
 	},
@@ -246,17 +246,18 @@ const traceTimeFormat = "2006-01-02T15:04:05.000"
 
 var colors = []color.Attribute{color.FgCyan, color.FgWhite, color.FgYellow, color.FgGreen}
 
-func checkAdminTraceSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 && len(ctx.String("in")) == 0 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminTraceSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if len(args.Slice()) != 1 && len(cmd.String("in")) == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	filterFlag := ctx.Bool("filter-request") || ctx.Bool("filter-response")
-	if filterFlag && ctx.String("filter-size") == "" {
+	filterFlag := cmd.Bool("filter-request") || cmd.Bool("filter-response")
+	if filterFlag && cmd.String("filter-size") == "" {
 		// filter must use with filter-size flags
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	if ctx.Bool("all") && len(ctx.StringSlice("call")) > 0 {
+	if cmd.Bool("all") && len(cmd.StringSlice("call")) > 0 {
 		fatalIf(errDummy().Trace(), "You cannot specify both --all and --call flags at the same time.")
 	}
 }
@@ -420,19 +421,19 @@ func (opts matchOpts) matches(traceInfo madmin.ServiceTraceInfo) bool {
 	return true
 }
 
-func matchingOpts(ctx *cli.Context) (opts matchOpts) {
-	opts.statusCodes = ctx.IntSlice("status-code")
-	opts.methods = ctx.StringSlice("method")
-	opts.funcNames = ctx.StringSlice("funcname")
-	opts.apiPaths = ctx.StringSlice("path")
-	opts.nodes = ctx.StringSlice("node")
-	for _, s := range ctx.StringSlice("request-header") {
+func matchingOpts(ctx context.Context, cmd *cli.Command) (opts matchOpts) {
+	opts.statusCodes = cmd.IntSlice("status-code")
+	opts.methods = cmd.StringSlice("method")
+	opts.funcNames = cmd.StringSlice("funcname")
+	opts.apiPaths = cmd.StringSlice("path")
+	opts.nodes = cmd.StringSlice("node")
+	for _, s := range cmd.StringSlice("request-header") {
 		opts.reqHeaders = append(opts.reqHeaders, matchString{
 			reverse: strings.HasPrefix(s, "!"),
 			val:     strings.TrimPrefix(s, "!"),
 		})
 	}
-	for _, s := range ctx.StringSlice("request-query") {
+	for _, s := range cmd.StringSlice("request-query") {
 		opts.reqQueries = append(opts.reqQueries, matchString{
 			reverse: strings.HasPrefix(s, "!"),
 			val:     strings.TrimPrefix(s, "!"),
@@ -441,14 +442,14 @@ func matchingOpts(ctx *cli.Context) (opts matchOpts) {
 
 	var e error
 	var requestSize, responseSize uint64
-	if ctx.Bool("filter-request") && ctx.String("filter-size") != "" {
-		requestSize, e = humanize.ParseBytes(ctx.String("filter-size"))
-		fatalIf(probe.NewError(e).Trace(ctx.String("filter-size")), "Unable to parse input bytes.")
+	if cmd.Bool("filter-request") && cmd.String("filter-size") != "" {
+		requestSize, e = humanize.ParseBytes(cmd.String("filter-size"))
+		fatalIf(probe.NewError(e).Trace(cmd.String("filter-size")), "Unable to parse input bytes.")
 	}
 
-	if ctx.Bool("filter-response") && ctx.String("filter-size") != "" {
-		responseSize, e = humanize.ParseBytes(ctx.String("filter-size"))
-		fatalIf(probe.NewError(e).Trace(ctx.String("filter-size")), "Unable to parse input bytes.")
+	if cmd.Bool("filter-response") && cmd.String("filter-size") != "" {
+		responseSize, e = humanize.ParseBytes(cmd.String("filter-size"))
+		fatalIf(probe.NewError(e).Trace(cmd.String("filter-size")), "Unable to parse input bytes.")
 	}
 	opts.requestSize = requestSize
 	opts.responseSize = responseSize
@@ -456,11 +457,11 @@ func matchingOpts(ctx *cli.Context) (opts matchOpts) {
 }
 
 // Calculate tracing options for command line flags
-func tracingOpts(ctx *cli.Context, apis []string) (opts madmin.ServiceTraceOpts, e error) {
-	opts.Threshold = ctx.Duration("response-duration")
-	opts.OnlyErrors = ctx.Bool("errors")
+func tracingOpts(ctx context.Context, cmd *cli.Command, apis []string) (opts madmin.ServiceTraceOpts, e error) {
+	opts.Threshold = cmd.Duration("response-duration")
+	opts.OnlyErrors = cmd.Bool("errors")
 
-	if ctx.Bool("all") {
+	if cmd.Bool("all") {
 		for _, fn := range traceCallTypes {
 			fn(&opts)
 		}
@@ -489,12 +490,12 @@ func tracingOpts(ctx *cli.Context, apis []string) (opts madmin.ServiceTraceOpts,
 }
 
 // mainAdminTrace - the entry function of trace command
-func mainAdminTrace(ctx *cli.Context) error {
+func mainAdminTrace(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkAdminTraceSyntax(ctx)
+	checkAdminTraceSyntax(ctx, cmd)
 
-	verbose := ctx.Bool("verbose")
-	stats := ctx.Bool("stats")
+	verbose := cmd.Bool("verbose")
+	stats := cmd.Bool("stats")
 
 	console.SetColor("Stat", color.New(color.FgYellow))
 
@@ -521,7 +522,7 @@ func mainAdminTrace(ctx *cli.Context) error {
 	ctxt, cancel := context.WithCancel(globalContext)
 	defer cancel()
 
-	if inFile := ctx.String("in"); inFile != "" {
+	if inFile := cmd.String("in"); inFile != "" {
 		stats = true
 		ch := make(chan madmin.ServiceTraceInfo, 1000)
 		traceCh = ch
@@ -571,7 +572,8 @@ func mainAdminTrace(ctx *cli.Context) error {
 		}()
 	} else {
 		// Create a new MinIO Admin Client
-		aliasedURL := ctx.Args().Get(0)
+		args := cmd.Args()
+		aliasedURL := args.Get(0)
 
 		client, err := newAdminClient(aliasedURL)
 		if err != nil {
@@ -579,17 +581,17 @@ func mainAdminTrace(ctx *cli.Context) error {
 			return nil
 		}
 
-		opts, e := tracingOpts(ctx, ctx.StringSlice("call"))
+		opts, e := tracingOpts(ctx, cmd, cmd.StringSlice("call"))
 		fatalIf(probe.NewError(e), "Unable to start tracing")
 
 		// Start listening on all trace activity.
 		traceCh = client.ServiceTrace(ctxt, opts)
 	}
 
-	mopts := matchingOpts(ctx)
+	mopts := matchingOpts(ctx, cmd)
 	if stats {
 		filteredTraces := make(chan madmin.ServiceTraceInfo, 1)
-		ui := tea.NewProgram(initTraceStatsUI(ctx.Bool("all"), ctx.Int("stats-n"), filteredTraces))
+		ui := tea.NewProgram(initTraceStatsUI(cmd.Bool("all"), cmd.Int("stats-n"), filteredTraces))
 		var te error
 		go func() {
 			for t := range traceCh {
@@ -609,7 +611,8 @@ func mainAdminTrace(ctx *cli.Context) error {
 			if te != nil {
 				e = te
 			}
-			aliasedURL := ctx.Args().Get(0)
+			args := cmd.Args()
+			aliasedURL := args.Get(0)
 			fatalIf(probe.NewError(e).Trace(aliasedURL), "Unable to fetch http trace statistics")
 		}
 		return nil

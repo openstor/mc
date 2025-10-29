@@ -17,7 +17,16 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
+
+func mainAdminConfig(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, adminConfigSubcommands)
+	return nil
+}
 
 var adminConfigSubcommands = []cli.Command{
 	adminConfigGetCmd,
@@ -30,18 +39,18 @@ var adminConfigSubcommands = []cli.Command{
 }
 
 var adminConfigCmd = cli.Command{
-	Name:            "config",
-	Usage:           "manage MinIO server configuration",
-	Action:          mainAdminConfig,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	Subcommands:     adminConfigSubcommands,
-	HideHelpCommand: true,
-}
-
-// mainAdminConfig is the handle for "mc admin config" command.
-func mainAdminConfig(ctx *cli.Context) error {
-	commandNotFound(ctx, adminConfigSubcommands)
-	return nil
-	// Sub-commands like "get", "set" have their own main.
+	Name:   "config",
+	Usage:  "configure MinIO server",
+	Action: mainAdminConfig,
+	Before: setGlobalsFromContext,
+	Flags:  globalFlags,
+	Commands: []*cli.Command{
+		&adminConfigGetCmd,
+		&adminConfigSetCmd,
+		&adminConfigResetCmd,
+		&adminConfigImportCmd,
+		&adminConfigExportCmd,
+		&adminConfigHistoryCmd,
+		&adminConfigRestoreCmd,
+	},
 }

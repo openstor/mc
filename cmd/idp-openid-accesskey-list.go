@@ -18,38 +18,39 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var idpOpenIDAccesskeyListFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "users-only",
 		Usage: "only list user DNs",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "temp-only",
 		Usage: "only list temporary access keys",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "svcacc-only",
 		Usage: "only list service account access keys",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "self",
 		Usage: "list access keys for the authenticated user",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all",
 		Usage: "list all access keys for all OpenID users",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all-configs",
 		Usage: "list access keys for all OpenID configurations",
 	},
@@ -57,7 +58,7 @@ var idpOpenIDAccesskeyListFlags = []cli.Flag{
 
 var idpOpenidAccesskeyListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list access key pairs for OpenID",
 	Action:       mainIDPOpenIDAccesskeyList,
 	Before:       setGlobalsFromContext,
@@ -140,8 +141,8 @@ func (m openIDAccesskeyList) JSON() string {
 	return string(jsonMessageBytes)
 }
 
-func mainIDPOpenIDAccesskeyList(ctx *cli.Context) error {
-	aliasedURL, tentativeAll, users, opts := commonAccesskeyList(ctx)
+func mainIDPOpenIDAccesskeyList(ctx context.Context, cmd *cli.Command) error {
+	aliasedURL, tentativeAll, users, opts := commonAccesskeyList(ctx, cmd)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)

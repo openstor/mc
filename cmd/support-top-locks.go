@@ -18,24 +18,25 @@
 package cmd
 
 import (
+	"context"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var supportTopLocksFlag = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "stale",
 		Usage:  "list all stale locks",
 		Hidden: true,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:   "count",
 		Usage:  "list N number of locks",
 		Hidden: true,
@@ -128,16 +129,16 @@ func (u lockMessage) JSON() string {
 }
 
 // checkAdminTopLocksSyntax - validate all the passed arguments
-func checkSupportTopLocksSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportTopLocksSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainSupportTopLocks(ctx *cli.Context) error {
-	checkSupportTopLocksSyntax(ctx)
+func mainSupportTopLocks(ctx context.Context, cmd *cli.Command) error {
+	checkSupportTopLocksSyntax(ctx, cmd)
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	alias, _ := url2Alias(aliasedURL)
 	validateClusterRegistered(alias, false)
@@ -152,8 +153,8 @@ func mainSupportTopLocks(ctx *cli.Context) error {
 
 	// Call top locks API
 	entries, e := client.TopLocksWithOpts(globalContext, madmin.TopLockOpts{
-		Count: ctx.Int("count"),
-		Stale: ctx.Bool("stale"),
+		Count: cmd.Int("count"),
+		Stale: cmd.Bool("stale"),
 	})
 	fatalIf(probe.NewError(e), "Unable to get server locks list.")
 

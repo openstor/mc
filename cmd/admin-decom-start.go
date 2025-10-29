@@ -18,13 +18,14 @@
 package cmd
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminDecommissionStartCmd = cli.Command{
@@ -50,9 +51,10 @@ EXAMPLES:
 }
 
 // checkAdminDecommissionStartSyntax - validate all the passed arguments
-func checkAdminDecommissionStartSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminDecommissionStartSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -76,14 +78,14 @@ func (s startDecomMessage) JSON() string {
 }
 
 // mainAdminDecommissionStart is the handle for "mc admin decommission start" command.
-func mainAdminDecommissionStart(ctx *cli.Context) error {
-	checkAdminDecommissionStartSyntax(ctx)
+func mainAdminDecommissionStart(ctx context.Context, cmd *cli.Command) error {
+	checkAdminDecommissionStartSyntax(ctx, cmd)
 
 	// Additional command speific theme customization.
 	console.SetColor("DecomPool", color.New(color.FgGreen, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	aliasedURL = filepath.Clean(aliasedURL)
 
@@ -91,8 +93,13 @@ func mainAdminDecommissionStart(ctx *cli.Context) error {
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	e := client.DecommissionPool(globalContext, args.Get(1))
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to start decommission on the specified pool")
+	e := client.DecommissionPool(ctx, args.Get(1))
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to start decommission on the specified pool")
 
 	printMsg(startDecomMessage{
 		Status: "success",

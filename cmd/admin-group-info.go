@@ -18,10 +18,12 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminGroupInfoCmd = cli.Command{
@@ -47,20 +49,21 @@ EXAMPLES:
 }
 
 // checkAdminGroupInfoSyntax - validate all the passed arguments
-func checkAdminGroupInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminGroupInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminGroupInfo is the handle for "mc admin group info" command.
-func mainAdminGroupInfo(ctx *cli.Context) error {
-	checkAdminGroupInfoSyntax(ctx)
+func mainAdminGroupInfo(ctx context.Context, cmd *cli.Command) error {
+	checkAdminGroupInfoSyntax(ctx, cmd)
 
 	console.SetColor("GroupMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -68,11 +71,16 @@ func mainAdminGroupInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	group := args.Get(1)
-	gd, e := client.GetGroupDescription(globalContext, group)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch group info")
+	gd, e := client.GetGroupDescription(ctx, group)
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to fetch group info")
 
 	printMsg(groupMessage{
-		op:          ctx.Command.Name,
+		op:          "info",
 		GroupName:   group,
 		GroupStatus: gd.Status,
 		GroupPolicy: gd.Policy,

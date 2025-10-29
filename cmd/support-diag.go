@@ -33,11 +33,11 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/klauspost/compress/gzip"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -53,13 +53,13 @@ var supportDiagFlags = append([]cli.Flag{
 		Value:  nil,
 		Hidden: true,
 	},
-	cli.DurationFlag{
+	&cli.DurationFlag{
 		Name:   "deadline",
 		Usage:  "maximum duration diagnostics should be allowed to run",
 		Value:  1 * time.Hour,
 		Hidden: true,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  anonymizeFlag,
 		Usage: "Data anonymization mode (standard|strict)",
 		Value: anonymizeStandard,
@@ -111,12 +111,12 @@ func (s supportDiagMessage) JSON() string {
 }
 
 // checkSupportDiagSyntax - validate arguments passed by a user
-func checkSupportDiagSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportDiagSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	anon := ctx.String(anonymizeFlag)
+	anon := cmd.String(anonymizeFlag)
 	if anon != anonymizeStandard && anon != anonymizeStrict {
 		fatal(errDummy().Trace(), "Invalid anonymization mode. Valid options are 'standard' or 'strict'.")
 	}
@@ -190,12 +190,12 @@ func warnText(s string) string {
 	return console.Colorize("WARN", s)
 }
 
-func mainSupportDiag(ctx *cli.Context) error {
-	checkSupportDiagSyntax(ctx)
+func mainSupportDiag(ctx context.Context, cmd *cli.Command) error {
+	checkSupportDiagSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	aliasedURL := ctx.Args().Get(0)
-	alias, apiKey := initSubnetConnectivity(ctx, aliasedURL, true)
+	aliasedURL := cmd.Args().Get(0)
+	alias, apiKey := initSubnetConnectivity(ctx, cmd, aliasedURL, true)
 	if len(apiKey) == 0 {
 		// api key not passed as flag. Check that the cluster is registered.
 		apiKey = validateClusterRegistered(alias, true)
@@ -205,12 +205,12 @@ func mainSupportDiag(ctx *cli.Context) error {
 	client := getClient(aliasedURL)
 
 	// Main execution
-	execSupportDiag(ctx, client, alias, apiKey)
+	execSupportDiag(ctx, cmd, client, alias, apiKey)
 
 	return nil
 }
 
-func execSupportDiag(ctx *cli.Context, client *madmin.AdminClient, alias, apiKey string) {
+func execSupportDiag(ctx context.Context, cmd *cli.Command, client *madmin.AdminClient, alias, apiKey string) {
 	var reqURL string
 	var headers map[string]string
 	setSuccessMessageColor()
@@ -255,11 +255,8 @@ func execSupportDiag(ctx *cli.Context, client *madmin.AdminClient, alias, apiKey
 	}
 }
 
-func fetchServerDiagInfo(ctx *cli.Context, client *madmin.AdminClient) (interface{}, string, error) {
-	opts := GetHealthDataTypeSlice(ctx, "test")
-	if len(*opts) == 0 {
-		opts = &options
-	}
+func fetchServerDiagInfo(ctx context.Context, client *madmin.AdminClient) (interface{}, string, error) {
+	opts := &options
 
 	optsMap := make(map[madmin.HealthDataType]struct{})
 	for _, opt := range *opts {
@@ -374,7 +371,7 @@ func fetchServerDiagInfo(ctx *cli.Context, client *madmin.AdminClient) (interfac
 	}
 
 	// Fetch info of all servers (cluster or single server)
-	resp, version, e := client.ServerHealthInfo(cont, *opts, ctx.Duration("deadline"), ctx.String(anonymizeFlag))
+	resp, version, e := client.ServerHealthInfo(cont, *opts, 1*time.Hour, anonymizeStandard)
 	if e != nil {
 		cancel()
 		return nil, "", e
@@ -481,18 +478,13 @@ type HealthDataTypeFlag struct {
 	Value  *HealthDataTypeSlice
 }
 
-// String - returns the string to be shown in the help message
-func (f HealthDataTypeFlag) String() string {
-	return cli.FlagStringer(f)
-}
-
 // GetName - returns the name of the flag
 func (f HealthDataTypeFlag) GetName() string {
 	return f.Name
 }
 
 // GetHealthDataTypeSlice - returns the list of set health tests
-func GetHealthDataTypeSlice(c *cli.Context, name string) *HealthDataTypeSlice {
+func GetHealthDataTypeSlice(c *cli.Command, name string) *HealthDataTypeSlice {
 	generic := c.Generic(name)
 	if generic == nil {
 		return nil
@@ -501,8 +493,8 @@ func GetHealthDataTypeSlice(c *cli.Context, name string) *HealthDataTypeSlice {
 }
 
 // GetGlobalHealthDataTypeSlice - returns the list of set health tests set globally
-func GetGlobalHealthDataTypeSlice(c *cli.Context, name string) *HealthDataTypeSlice {
-	generic := c.GlobalGeneric(name)
+func GetGlobalHealthDataTypeSlice(c *cli.Command, name string) *HealthDataTypeSlice {
+	generic := c.Generic(name)
 	if generic == nil {
 		return nil
 	}
@@ -541,6 +533,47 @@ func (f HealthDataTypeFlag) ApplyWithError(set *flag.FlagSet) error {
 		set.Var(f.Value, name, f.Usage)
 	}
 	return nil
+}
+
+// Set sets the flag value
+func (f HealthDataTypeFlag) Set(name, value string) error {
+	if f.Value == nil {
+		f.Value = &HealthDataTypeSlice{}
+	}
+	return f.Value.Set(value)
+}
+
+// Get returns the flag value
+func (f HealthDataTypeFlag) Get() interface{} {
+	if f.Value != nil {
+		return *f.Value
+	}
+	return nil
+}
+
+// Names returns the flag names
+func (f HealthDataTypeFlag) Names() []string {
+	return strings.Split(f.Name, ",")
+}
+
+// IsSet returns whether the flag is set
+func (f HealthDataTypeFlag) IsSet() bool {
+	return f.Value != nil
+}
+
+// PreParse is called before parsing
+func (f HealthDataTypeFlag) PreParse() error {
+	return nil
+}
+
+// PostParse is called after parsing
+func (f HealthDataTypeFlag) PostParse() error {
+	return nil
+}
+
+// String returns the string representation of the flag
+func (f HealthDataTypeFlag) String() string {
+	return fmt.Sprintf("--%s", f.Name)
 }
 
 var options = HealthDataTypeSlice(madmin.HealthDataTypesList)

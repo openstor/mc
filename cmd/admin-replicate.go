@@ -17,9 +17,13 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminReplicateSubcommands = []cli.Command{
+	"github.com/urfave/cli/v3"
+)
+
+var adminReplicateSubcommands = []*cli.Command{
 	adminReplicateAddCmd,
 	adminReplicateUpdateCmd,
 	adminReplicateRemoveCmd,
@@ -34,11 +38,11 @@ var adminReplicateCmd = cli.Command{
 	Action:          mainAdminReplicate,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminReplicateSubcommands,
+	Commands:        adminReplicateSubcommands,
 	HideHelpCommand: true,
 }
 
-func mainAdminReplicate(ctx *cli.Context) error {
-	commandNotFound(ctx, adminReplicateSubcommands)
+func mainAdminReplicate(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

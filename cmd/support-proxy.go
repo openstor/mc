@@ -18,13 +18,15 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
-var supportProxySubcommands = []cli.Command{
-	supportProxySetCmd,
-	supportProxyRemoveCmd,
-	supportProxyShowCmd,
+var supportProxySubcommands = []*cli.Command{
+	&supportProxySetCmd,
+	&supportProxyRemoveCmd,
+	&supportProxyShowCmd,
 }
 
 var supportProxyCmd = cli.Command{
@@ -34,13 +36,18 @@ var supportProxyCmd = cli.Command{
 	OnUsageError:    onUsageError,
 	Before:          setGlobalsFromContext,
 	Flags:           supportGlobalFlags,
-	Subcommands:     supportProxySubcommands,
+	Commands:        supportProxySubcommands,
 	HideHelpCommand: true,
 }
 
 // mainSupportProxy is the handler for "mc support proxy" command.
-func mainSupportProxy(ctx *cli.Context) error {
-	commandNotFound(ctx, supportProxySubcommands)
+func mainSupportProxy(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range supportProxySubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "set", "remove", "show" have their own main.
 	// Check for command syntax

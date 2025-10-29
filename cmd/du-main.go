@@ -27,28 +27,28 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // du specific flags.
 var (
 	duFlags = []cli.Flag{
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "depth, d",
 			Usage: "print the total for a folder prefix only if it is N or fewer levels below the command line argument",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "recursive, r",
 			Usage: "recursively print the total for a folder prefix",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "rewind",
 			Usage: "include all object versions no later than specified date",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "versions",
 			Usage: "include all object versions",
 		},
@@ -207,9 +207,9 @@ func du(ctx context.Context, urlStr string, timeRef time.Time, withVersions bool
 }
 
 // main for du command.
-func mainDu(cliCtx *cli.Context) error {
-	if !cliCtx.Args().Present() {
-		showCommandHelpAndExit(cliCtx, 1)
+func mainDu(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
 	// Set colors.
@@ -222,10 +222,10 @@ func mainDu(cliCtx *cli.Context) error {
 	defer cancelRm()
 
 	// du specific flags.
-	depth := cliCtx.Int("depth")
+	depth := cmd.Int("depth")
 	if depth == 0 {
-		if cliCtx.Bool("recursive") {
-			if !cliCtx.IsSet("depth") {
+		if cmd.Bool("recursive") {
+			if !cmd.IsSet("depth") {
 				depth = -1
 			}
 		} else {
@@ -233,12 +233,12 @@ func mainDu(cliCtx *cli.Context) error {
 		}
 	}
 
-	withVersions := cliCtx.Bool("versions")
-	timeRef := parseRewindFlag(cliCtx.String("rewind"))
+	withVersions := cmd.Bool("versions")
+	timeRef := parseRewindFlag(cmd.String("rewind"))
 
 	var duErr error
 	var isDir bool
-	for _, urlStr := range cliCtx.Args() {
+	for _, urlStr := range cmd.Args().Slice() {
 		isDir, _ = isAliasURLDir(ctx, urlStr, nil, time.Time{}, false)
 		if !isDir {
 			fatalIf(errInvalidArgument().Trace(urlStr), fmt.Sprintf("Source `%s` is not a folder. Only folders are supported by 'du' command.", urlStr))

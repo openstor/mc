@@ -26,14 +26,14 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var anonymousFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "list recursively",
 	},
@@ -174,26 +174,26 @@ func (s anonymousLinksMessage) JSON() string {
 }
 
 // checkAnonymousSyntax check for incoming syntax.
-func checkAnonymousSyntax(ctx *cli.Context) {
-	argsLength := len(ctx.Args())
+func checkAnonymousSyntax(ctx context.Context, cmd *cli.Command) {
+	argsLength := cmd.Args().Len()
 	// Always print a help message when we have extra arguments
 	if argsLength > 3 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code.
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code.
 	}
 	// Always print a help message when no arguments specified
 	if argsLength < 1 {
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	firstArg := ctx.Args().Get(0)
-	secondArg := ctx.Args().Get(1)
+	firstArg := cmd.Args().Get(0)
+	secondArg := cmd.Args().Get(1)
 
 	// More syntax checking
 	switch accessPerms(firstArg) {
 	case "set":
 		// Always expect three arguments when setting a anonymous permission.
 		if argsLength != 3 {
-			showCommandHelpAndExit(ctx, 1)
+			showCommandHelpAndExit(ctx, cmd, 1)
 		}
 		if accessPerms(secondArg) != accessNone &&
 			accessPerms(secondArg) != accessDownload &&
@@ -207,25 +207,25 @@ func checkAnonymousSyntax(ctx *cli.Context) {
 	case "set-json":
 		// Always expect three arguments when setting a anonymous permission.
 		if argsLength != 3 {
-			showCommandHelpAndExit(ctx, 1)
+			showCommandHelpAndExit(ctx, cmd, 1)
 		}
 	case "get", "get-json":
 		// get or get-json always expects two arguments
 		if argsLength != 2 {
-			showCommandHelpAndExit(ctx, 1)
+			showCommandHelpAndExit(ctx, cmd, 1)
 		}
 	case "list":
 		// Always expect an argument after list cmd
 		if argsLength != 2 {
-			showCommandHelpAndExit(ctx, 1)
+			showCommandHelpAndExit(ctx, cmd, 1)
 		}
 	case "links":
 		// Always expect an argument after links cmd
 		if argsLength != 2 {
-			showCommandHelpAndExit(ctx, 1)
+			showCommandHelpAndExit(ctx, cmd, 1)
 		}
 	default:
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
@@ -333,11 +333,14 @@ func doGetAccessRules(ctx context.Context, targetURL string) (r map[string]strin
 }
 
 // Run anonymous list command
-func runAnonymousListCmd(args cli.Args) {
+func runAnonymousListCmd(args []string) {
 	ctx, cancelAnonymousList := context.WithCancel(globalContext)
 	defer cancelAnonymousList()
 
-	targetURL := args.First()
+	if len(args) == 0 {
+		return
+	}
+	targetURL := args[0]
 	policies, err := doGetAccessRules(ctx, targetURL)
 	if err != nil {
 		switch err.ToGoError().(type) {
@@ -353,12 +356,15 @@ func runAnonymousListCmd(args cli.Args) {
 }
 
 // Run anonymous links command
-func runAnonymousLinksCmd(args cli.Args, recursive bool) {
+func runAnonymousLinksCmd(args []string, recursive bool) {
 	ctx, cancelAnonymousLinks := context.WithCancel(globalContext)
 	defer cancelAnonymousLinks()
 
+	if len(args) == 0 {
+		return
+	}
 	// Get alias/bucket/prefix argument
-	targetURL := args.First()
+	targetURL := args[0]
 
 	// Fetch all policies associated to the passed url
 	policies, err := doGetAccessRules(ctx, targetURL)
@@ -478,29 +484,29 @@ func runAnonymousCmd(args cli.Args) {
 	})
 }
 
-func mainAnonymous(ctx *cli.Context) error {
+func mainAnonymous(ctx context.Context, cmd *cli.Command) error {
 	// check 'anonymous' cli arguments.
-	checkAnonymousSyntax(ctx)
+	checkAnonymousSyntax(ctx, cmd)
 
 	// Additional command speific theme customization.
 	console.SetColor("Anonymous", color.New(color.FgGreen, color.Bold))
 
-	switch ctx.Args().First() {
+	switch cmd.Args().First() {
 	case "set", "set-json", "get", "get-json":
 		// anonymous set [private|public|download|upload] alias/bucket/prefix
 		// anonymous set-json path-to-anonymous-json-file alias/bucket/prefix
 		// anonymous get alias/bucket/prefix
 		// anonymous get-json alias/bucket/prefix
-		runAnonymousCmd(ctx.Args())
+		runAnonymousCmd(cmd.Args())
 	case "list":
 		// anonymous list alias/bucket/prefix
-		runAnonymousListCmd(ctx.Args().Tail())
+		runAnonymousListCmd(cmd.Args().Tail())
 	case "links":
 		// anonymous links alias/bucket/prefix
-		runAnonymousLinksCmd(ctx.Args().Tail(), ctx.Bool("recursive"))
+		runAnonymousLinksCmd(cmd.Args().Tail(), cmd.Bool("recursive"))
 	default:
 		// Shows command example and exit
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 	return nil
 }

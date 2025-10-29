@@ -25,27 +25,27 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var lhInfoFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "show legal hold status recursively",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "show legal hold status of a specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "show legal hold status of an object version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "show legal hold status of multiple versions of object(s)",
 	},
@@ -85,12 +85,12 @@ EXAMPLES:
 
 // Structured message depending on the type of console.
 type legalHoldInfoMessage struct {
-	LegalHold minio.LegalHoldStatus `json:"legalhold"`
-	URLPath   string                `json:"urlpath"`
-	Key       string                `json:"key"`
-	VersionID string                `json:"versionID"`
-	Status    string                `json:"status"`
-	Err       error                 `json:"error,omitempty"`
+	LegalHold openstor.LegalHoldStatus `json:"legalhold"`
+	URLPath   string                   `json:"urlpath"`
+	Key       string                   `json:"key"`
+	VersionID string                   `json:"versionID"`
+	Status    string                   `json:"status"`
+	Err       error                    `json:"error,omitempty"`
 }
 
 // Colorized message for console printing.
@@ -104,9 +104,9 @@ func (l legalHoldInfoMessage) String() string {
 	switch l.LegalHold {
 	case "":
 		legalhold = console.Colorize("LegalHoldNotSet", "Not set")
-	case minio.LegalHoldEnabled:
+	case openstor.LegalHoldEnabled:
 		legalhold = console.Colorize("LegalHoldOn", l.LegalHold)
-	case minio.LegalHoldDisabled:
+	case openstor.LegalHoldDisabled:
 		legalhold = console.Colorize("LegalHoldOff", l.LegalHold)
 	}
 
@@ -220,7 +220,7 @@ func showLegalHoldInfo(ctx context.Context, urlStr, versionID string, timeRef ti
 }
 
 // main for legalhold info command.
-func mainLegalHoldInfo(cliCtx *cli.Context) error {
+func mainLegalHoldInfo(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor("LegalHoldSuccess", color.New(color.FgGreen, color.Bold))
 	console.SetColor("LegalHoldNotSet", color.New(color.FgYellow))
 	console.SetColor("LegalHoldOn", color.New(color.FgGreen, color.Bold))
@@ -229,7 +229,7 @@ func mainLegalHoldInfo(cliCtx *cli.Context) error {
 	console.SetColor("LegalHoldPartialFailure", color.New(color.FgRed, color.Bold))
 	console.SetColor("LegalHoldMessageFailure", color.New(color.FgYellow))
 
-	targetURL, versionID, timeRef, recursive, withVersions := parseLegalHoldArgs(cliCtx)
+	targetURL, versionID, timeRef, recursive, withVersions := parseLegalHoldArgs(ctx, cmd)
 	if timeRef.IsZero() && withVersions {
 		timeRef = time.Now().UTC()
 	}

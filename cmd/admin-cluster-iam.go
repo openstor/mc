@@ -17,11 +17,15 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminClusterIAMSubcommands = []cli.Command{
-	adminClusterIAMImportCmd,
-	adminClusterIAMExportCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var adminClusterIAMSubcommands = []*cli.Command{
+	&adminClusterIAMImportCmd,
+	&adminClusterIAMExportCmd,
 }
 
 var adminClusterIAMCmd = cli.Command{
@@ -30,13 +34,17 @@ var adminClusterIAMCmd = cli.Command{
 	Action:          mainadminClusterIAM,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminClusterIAMSubcommands,
+	Commands:        adminClusterIAMSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainadminClusterIAM is the handle for "mc admin cluster bucket" command.
-func mainadminClusterIAM(ctx *cli.Context) error {
-	commandNotFound(ctx, adminClusterIAMSubcommands)
+func mainadminClusterIAM(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range adminClusterIAMSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 	// Sub-commands like "export", "import" have their own main.
 }

@@ -17,15 +17,19 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var ilmRuleSubcommands = []cli.Command{
-	ilmAddCmd,
-	ilmEditCmd,
-	ilmLsCmd,
-	ilmRmCmd,
-	ilmExportCmd,
-	ilmImportCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var ilmRuleSubcommands = []*cli.Command{
+	&ilmAddCmd,
+	&ilmEditCmd,
+	&ilmLsCmd,
+	&ilmRmCmd,
+	&ilmExportCmd,
+	&ilmImportCmd,
 }
 
 var ilmRuleCmd = cli.Command{
@@ -33,12 +37,12 @@ var ilmRuleCmd = cli.Command{
 	Usage:           "manage bucket lifecycle rules",
 	Before:          setGlobalsFromContext,
 	Action:          mainILMRule,
-	Subcommands:     ilmRuleSubcommands,
+	Commands:        ilmRuleSubcommands,
 	Flags:           globalFlags,
 	HideHelpCommand: true,
 }
 
-func mainILMRule(ctx *cli.Context) error {
-	commandNotFound(ctx, ilmRuleSubcommands)
+func mainILMRule(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

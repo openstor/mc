@@ -17,12 +17,16 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var versionSubcommands = []cli.Command{
-	versionEnableCmd,
-	versionSuspendCmd,
-	versionInfoCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var versionSubcommands = []*cli.Command{
+	&versionEnableCmd,
+	&versionSuspendCmd,
+	&versionInfoCmd,
 }
 
 var versionCmd = cli.Command{
@@ -32,12 +36,17 @@ var versionCmd = cli.Command{
 	Action:          mainVersion,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     versionSubcommands,
+	Commands:        versionSubcommands,
 }
 
 // mainVersion is the handle for "mc version" command.
-func mainVersion(ctx *cli.Context) error {
-	commandNotFound(ctx, versionSubcommands)
+func mainVersion(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range versionSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "info", "enable", "suspend" have their own main.
 }

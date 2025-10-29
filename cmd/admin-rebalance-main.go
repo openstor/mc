@@ -17,7 +17,11 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var adminRebalanceSubcommands = []cli.Command{
 	adminRebalanceStartCmd,
@@ -26,16 +30,15 @@ var adminRebalanceSubcommands = []cli.Command{
 }
 
 var adminRebalanceCmd = cli.Command{
-	Name:            "rebalance",
-	Usage:           "Manage MinIO rebalance",
-	Action:          mainAdminRebalance,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	Subcommands:     adminRebalanceSubcommands,
-	HideHelpCommand: true,
+	Name:     "rebalance",
+	Usage:    "Manage MinIO rebalance",
+	Action:   mainAdminRebalance,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	HideHelp: true,
 }
 
-func mainAdminRebalance(ctx *cli.Context) error {
-	commandNotFound(ctx, adminRebalanceSubcommands)
+func mainAdminRebalance(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, adminRebalanceSubcommands)
 	return nil
 }

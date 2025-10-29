@@ -23,26 +23,26 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var tagRemoveFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "remove tags on a specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "remove tags on an object version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "remove tags on multiple versions of an object",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "recursivley remove tags for all objects",
 	},
@@ -113,16 +113,16 @@ func (t tagRemoveMessage) JSON() string {
 	return string(msgBytes)
 }
 
-func parseRemoveTagSyntax(ctx *cli.Context) (targetURL, versionID string, timeRef time.Time, withVersions, recursive bool) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func parseRemoveTagSyntax(ctx context.Context, cmd *cli.Command) (targetURL, versionID string, timeRef time.Time, withVersions, recursive bool) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 
-	targetURL = ctx.Args().Get(0)
-	versionID = ctx.String("version-id")
-	withVersions = ctx.Bool("versions")
-	rewind := ctx.String("rewind")
-	recursive = ctx.Bool("recursive")
+	targetURL = cmd.Args().Get(0)
+	versionID = cmd.String("version-id")
+	withVersions = cmd.Bool("versions")
+	rewind := cmd.String("rewind")
+	recursive = cmd.Bool("recursive")
 
 	if versionID != "" && (rewind != "" || withVersions) {
 		fatalIf(errDummy().Trace(), "You cannot specify both --version-id and --rewind or --versions flags at the same time")
@@ -162,13 +162,13 @@ func deleteTagsSingle(ctx context.Context, alias, url, versionID string) *probe.
 	return nil
 }
 
-func mainRemoveTag(cliCtx *cli.Context) error {
+func mainRemoveTag(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelList := context.WithCancel(globalContext)
 	defer cancelList()
 
 	console.SetColor("Remove", color.New(color.FgGreen))
 
-	targetURL, versionID, timeRef, withVersions, recursive := parseRemoveTagSyntax(cliCtx)
+	targetURL, versionID, timeRef, withVersions, recursive := parseRemoveTagSyntax(ctx, cmd)
 	if timeRef.IsZero() && withVersions {
 		timeRef = time.Now().UTC()
 	}

@@ -21,14 +21,14 @@ import (
 	"context"
 	"strings"
 
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // get command flags.
 var (
 	getFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "version-id, vid",
 			Usage: "get a specific version of an object",
 		},
@@ -42,7 +42,7 @@ var getCmd = cli.Command{
 	Action:       mainGet,
 	OnUsageError: onUsageError,
 	Before:       setGlobalsFromContext,
-	Flags:        append(append(globalFlags, encCFlag), getFlags...),
+	Flags:        append(append(globalFlags, &encCFlag), getFlags...),
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -63,24 +63,25 @@ EXAMPLES:
 }
 
 // mainGet is the entry point for get command.
-func mainGet(cliCtx *cli.Context) (e error) {
-	args := cliCtx.Args()
-	if len(args) != 2 {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code.
+func mainGet(ctx context.Context, cmd *cli.Command) (e error) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code.
 	}
 
 	ctx, cancelGet := context.WithCancel(globalContext)
 	defer cancelGet()
 
-	encryptionKeys, err := validateAndCreateEncryptionKeys(cliCtx)
+	encryptionKeys, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	if err != nil {
-		err.Trace(cliCtx.Args()...)
+		err.Trace(cmd.Args().Tail()...)
 	}
 	fatalIf(err, "unable to parse encryption keys")
 
 	// get source and target
-	sourceURLs := args[:len(args)-1]
-	targetURL := args[len(args)-1]
+	sourceURLs := make([]string, 1)
+	sourceURLs[0] = args.Get(0)
+	targetURL := args.Get(1)
 
 	getURLsCh := make(chan URLs, 10000)
 	var totalObjects, totalBytes int64
@@ -99,7 +100,7 @@ func mainGet(cliCtx *cli.Context) (e error) {
 			targetURL:               targetURL,
 			encKeyDB:                encryptionKeys,
 			ignoreBucketExistsCheck: true,
-			versionID:               cliCtx.String("version-id"),
+			versionID:               cmd.String("version-id"),
 		}
 
 		for getURLs := range prepareGetURLs(ctx, opts) {

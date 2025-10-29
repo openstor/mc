@@ -18,19 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
-	"github.com/minio/pkg/v3/policy"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/openstor/pkg/v3/policy"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserPolicyCmd = cli.Command{
+var adminUserPolicyCmd = &cli.Command{
 	Name:         "policy",
 	Usage:        "export user policies in JSON format",
 	Action:       mainAdminUserPolicy,
@@ -51,20 +52,21 @@ EXAMPLES:
 }
 
 // checkAdminUserPolicySyntax - validate all the passed arguments
-func checkAdminUserPolicySyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminUserPolicySyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminUserPolicy is the handler for "mc admin user policy" command.
-func mainAdminUserPolicy(ctx *cli.Context) error {
-	checkAdminUserPolicySyntax(ctx)
+func mainAdminUserPolicy(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserPolicySyntax(ctx, cmd)
 
 	console.SetColor("UserMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -72,11 +74,11 @@ func mainAdminUserPolicy(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	user, e := client.GetUserInfo(globalContext, args.Get(1))
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get user info")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get user info")
 
 	if user.PolicyName == "" {
 		e = fmt.Errorf("policy not found for user %s", args.Get(1))
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch user policy document")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to fetch user policy document")
 	}
 
 	policyNames := strings.Split(user.PolicyName, ",")

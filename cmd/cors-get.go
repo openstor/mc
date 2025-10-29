@@ -18,9 +18,11 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var corsGetCmd = cli.Command{
@@ -46,21 +48,21 @@ EXAMPLES:
 }
 
 // checkCorsGetSyntax - validate all the passed arguments
-func checkCorsGetSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkCorsGetSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.NArg() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainCorsGet is the handle for "mc cors get" command.
-func mainCorsGet(ctx *cli.Context) error {
-	checkCorsGetSyntax(ctx)
+func mainCorsGet(ctx context.Context, cmd *cli.Command) error {
+	checkCorsGetSyntax(ctx, cmd)
 
 	console.SetColor("CorsMessage", color.New(color.FgGreen))
 	console.SetColor("CorsNotFound", color.New(color.FgYellow))
 
 	// args[0] is the ALIAS/BUCKET argument.
-	args := ctx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	client, err := newClient(urlStr)

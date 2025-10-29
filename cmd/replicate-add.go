@@ -28,73 +28,73 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/minio-go/v7/pkg/s3utils"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/openstor-go/v7/pkg/s3utils"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateAddFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "arn",
 		Usage:  "unique role ARN",
 		Hidden: true,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "id",
 		Usage: "id for the rule, should be a unique value",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "tags",
 		Usage: "format '<key1>=<value1>&<key2>=<value2>&<key3>=<value3>', multiple values allowed for multiple key/value pairs",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "storage-class",
 		Usage: `storage class for destination, valid values are either "STANDARD" or "REDUCED_REDUNDANCY"`,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "disable",
 		Usage: "disable the rule",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "priority",
 		Usage: "priority of the rule, should be unique and is a required field",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "remote-bucket",
 		Usage: "remote bucket, should be a unique value for the configuration",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "replicate",
 		Value: `delete-marker,delete,existing-objects,metadata-sync`,
 		Usage: `comma separated list to enable replication of soft deletes, permanent deletes, existing objects and metadata sync`,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "path",
 		Value: "auto",
 		Usage: "bucket path lookup supported by the server. Valid options are ['auto', 'on', 'off']'",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "region",
 		Usage: "region of the destination bucket (optional)",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "bandwidth",
 		Usage: "set bandwidth limit in bytes per second (K,B,G,T for metric and Ki,Bi,Gi,Ti for IEC units)",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "sync",
 		Usage: "enable synchronous replication for this target. default is async",
 	},
-	cli.UintFlag{
+	&cli.UintFlag{
 		Name:  "healthcheck-seconds",
 		Usage: "health check interval in seconds",
 		Value: 60,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "disable-proxy",
 		Usage: "disable proxying in active-active replication. If unset, default behavior is to proxy",
 	},
@@ -145,11 +145,11 @@ EXAMPLES:
 }
 
 // checkReplicateAddSyntax - validate all the passed arguments
-func checkReplicateAddSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateAddSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	if ctx.String("remote-bucket") == "" {
+	if cmd.String("remote-bucket") == "" {
 		fatal(errDummy().Trace(), "--remote-bucket flag needs to be specified.")
 	}
 }
@@ -219,17 +219,17 @@ func extractCredentialURL(argURL string) (accessKey, secretKey string, u *url.UR
 }
 
 // fetchRemoteTarget - returns the dest bucket, dest endpoint, access and secret key
-func fetchRemoteTarget(cli *cli.Context) (bktTarget *madmin.BucketTarget) {
-	if !cli.IsSet("remote-bucket") {
+func fetchRemoteTarget(cmd *cli.Command) (bktTarget *madmin.BucketTarget) {
+	if !cmd.IsSet("remote-bucket") {
 		fatalIf(probe.NewError(fmt.Errorf("missing Remote target configuration")), "unable to parse remote target")
 	}
-	p := cli.String("path")
+	p := cmd.String("path")
 	if !isValidPath(p) {
 		fatalIf(errInvalidArgument().Trace(p),
 			"unrecognized bucket path style. Valid options are `[on, off, auto]`.")
 	}
 
-	tgtURL := cli.String("remote-bucket")
+	tgtURL := cmd.String("remote-bucket")
 	accessKey, secretKey, u := extractCredentialURL(tgtURL)
 	var tgtBucket string
 	if u.Path != "" {
@@ -237,13 +237,13 @@ func fetchRemoteTarget(cli *cli.Context) (bktTarget *madmin.BucketTarget) {
 	}
 	fatalIf(probe.NewError(s3utils.CheckValidBucketName(tgtBucket)).Trace(tgtURL), "invalid target bucket")
 
-	bandwidthStr := cli.String("bandwidth")
+	bandwidthStr := cmd.String("bandwidth")
 	bandwidth, e := getBandwidthInBytes(bandwidthStr)
 	fatalIf(probe.NewError(e).Trace(bandwidthStr), "invalid bandwidth value")
 
 	console.SetColor(cred, color.New(color.FgYellow, color.Italic))
 	creds := &madmin.Credentials{AccessKey: accessKey, SecretKey: secretKey}
-	disableproxy := cli.Bool("disable-proxy")
+	disableproxy := cmd.Bool("disable-proxy")
 	bktTarget = &madmin.BucketTarget{
 		TargetBucket:        tgtBucket,
 		Secure:              u.Scheme == "https",
@@ -252,11 +252,11 @@ func fetchRemoteTarget(cli *cli.Context) (bktTarget *madmin.BucketTarget) {
 		Path:                p,
 		API:                 "s3v4",
 		Type:                madmin.ServiceType("replication"),
-		Region:              cli.String("region"),
+		Region:              cmd.String("region"),
 		BandwidthLimit:      int64(bandwidth),
-		ReplicationSync:     cli.Bool("sync"),
+		ReplicationSync:     cmd.Bool("sync"),
 		DisableProxy:        disableproxy,
-		HealthCheckDuration: time.Duration(cli.Uint("healthcheck-seconds")) * time.Second,
+		HealthCheckDuration: time.Duration(cmd.Uint("healthcheck-seconds")) * time.Second,
 	}
 	return bktTarget
 }
@@ -271,16 +271,16 @@ func getBandwidthInBytes(bandwidthStr string) (bandwidth uint64, err error) {
 	return
 }
 
-func mainReplicateAdd(cliCtx *cli.Context) error {
+func mainReplicateAdd(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelReplicateAdd := context.WithCancel(globalContext)
 	defer cancelReplicateAdd()
 
 	console.SetColor("replicateAddMessage", color.New(color.FgGreen))
 
-	checkReplicateAddSyntax(cliCtx)
+	checkReplicateAddSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new Client
@@ -292,28 +292,28 @@ func mainReplicateAdd(cliCtx *cli.Context) error {
 	case *S3Client:
 		sourceBucket, _ = c.url2BucketAndObject()
 	default:
-		fatalIf(err.Trace(args...), "replication is not supported for filesystem")
+		fatalIf(err.Trace(args.Slice()...), "replication is not supported for filesystem")
 	}
 	// Create a new MinIO Admin Client
 	admclient, cerr := newAdminClient(aliasedURL)
 	fatalIf(cerr, "unable to initialize admin connection.")
 
-	bktTarget := fetchRemoteTarget(cliCtx)
+	bktTarget := fetchRemoteTarget(cmd)
 	arn, e := admclient.SetRemoteTarget(globalContext, sourceBucket, bktTarget)
-	fatalIf(probe.NewError(e).Trace(args...), "unable to configure remote target")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "unable to configure remote target")
 
 	rcfg, err := client.GetReplication(ctx)
-	fatalIf(err.Trace(args...), "unable to fetch replication configuration")
+	fatalIf(err.Trace(args.Slice()...), "unable to fetch replication configuration")
 
 	ruleStatus := enableStatus
-	if cliCtx.Bool(disableStatus) {
+	if cmd.Bool(disableStatus) {
 		ruleStatus = disableStatus
 	}
 	dmReplicateStatus := disableStatus
 	deleteReplicationStatus := disableStatus
 	replicaSync := enableStatus
 	existingReplicationStatus := disableStatus
-	replSlice := strings.Split(cliCtx.String("replicate"), ",")
+	replSlice := strings.Split(cmd.String("replicate"), ",")
 	for _, opt := range replSlice {
 		switch strings.TrimSpace(strings.ToLower(opt)) {
 		case "delete-marker":
@@ -325,17 +325,17 @@ func mainReplicateAdd(cliCtx *cli.Context) error {
 		case "existing-objects":
 			existingReplicationStatus = enableStatus
 		default:
-			fatalIf(probe.NewError(fmt.Errorf("invalid value for --replicate flag %s", cliCtx.String("replicate"))),
+			fatalIf(probe.NewError(fmt.Errorf("invalid value for --replicate flag %s", cmd.String("replicate"))),
 				`--replicate flag takes one or more comma separated string with values "delete", "delete-marker", "metadata-sync", "existing-objects" or "" to disable these settings`)
 		}
 	}
 
 	opts := replication.Options{
-		TagString:               cliCtx.String("tags"),
-		StorageClass:            cliCtx.String("storage-class"),
-		Priority:                strconv.Itoa(cliCtx.Int("priority")),
+		TagString:               cmd.String("tags"),
+		StorageClass:            cmd.String("storage-class"),
+		Priority:                strconv.Itoa(cmd.Int("priority")),
 		RuleStatus:              ruleStatus,
-		ID:                      cliCtx.String("id"),
+		ID:                      cmd.String("id"),
 		DestBucket:              arn,
 		Op:                      replication.AddOption,
 		ReplicateDeleteMarkers:  dmReplicateStatus,
@@ -346,7 +346,7 @@ func mainReplicateAdd(cliCtx *cli.Context) error {
 	fatalIf(client.SetReplication(ctx, &rcfg, opts), "unable to add replication rule")
 
 	printMsg(replicateAddMessage{
-		Op:  cliCtx.Command.Name,
+		Op:  cmd.Name,
 		URL: aliasedURL,
 		ID:  opts.ID,
 	})

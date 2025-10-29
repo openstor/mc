@@ -18,17 +18,18 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
 
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var aliasImportCmd = cli.Command{
 	Name:            "import",
-	ShortName:       "i",
+	Aliases:         []string{"i"},
 	Usage:           "import configuration info to configuration file from a JSON formatted string ",
 	Action:          mainAliasImport,
 	OnUsageError:    onUsageError,
@@ -64,15 +65,14 @@ EXAMPLES:
 }
 
 // checkAliasImportSyntax - verifies input arguments to 'alias import'.
-func checkAliasImportSyntax(ctx *cli.Context) {
-	args := ctx.Args()
-	argsNr := len(args)
+func checkAliasImportSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
 
-	if argsNr == 0 {
-		showCommandHelpAndExit(ctx, 1)
+	if cmd.NArg() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
-	if argsNr > 2 {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+	if cmd.NArg() > 2 {
+		fatalIf(errInvalidArgument().Trace(cmd.Args().Tail()...),
 			"Incorrect number of arguments for alias Import command.")
 	}
 
@@ -128,13 +128,13 @@ func importAlias(alias string, aliasCfgV10 aliasConfigV10) aliasMessage {
 	}
 }
 
-func mainAliasImport(cli *cli.Context) error {
+func mainAliasImport(ctx context.Context, cmd *cli.Command) error {
 	var (
-		args  = cli.Args()
+		args  = cmd.Args()
 		alias = cleanAlias(args.Get(0))
 	)
 
-	checkAliasImportSyntax(cli)
+	checkAliasImportSyntax(ctx, cmd)
 	var credentialsJSON aliasConfigV10
 
 	credsFile := strings.TrimSpace(args.Get(1))
@@ -142,13 +142,13 @@ func mainAliasImport(cli *cli.Context) error {
 		credsFile = os.Stdin.Name()
 	}
 	input, e := os.ReadFile(credsFile)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to parse credentials file")
+	fatalIf(probe.NewError(e).Trace(credsFile), "Unable to parse credentials file")
 
 	e = json.Unmarshal(input, &credentialsJSON)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to parse input credentials")
+	fatalIf(probe.NewError(e).Trace(credsFile), "Unable to parse input credentials")
 
 	msg := importAlias(alias, credentialsJSON)
-	msg.op = cli.Command.Name
+	msg.op = cmd.Name
 
 	printMsg(msg)
 

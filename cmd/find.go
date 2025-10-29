@@ -33,13 +33,13 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/google/shlex"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 	"golang.org/x/text/unicode/norm"
 
 	// golang does not support flat keys for path matching, find does
-	"github.com/minio/pkg/v3/wildcard"
+	"github.com/openstor/pkg/v3/wildcard"
 )
 
 // findMessage holds JSON and string values for printing find command output.
@@ -470,8 +470,8 @@ func getShareURL(ctx context.Context, path string) string {
 // getRegexMap returns a map from the StringSlice key.
 // Each entry must be key=regex.
 // Will exit with error if an un-parsable entry is found.
-func getRegexMap(cliCtx *cli.Context, key string) map[string]*regexp.Regexp {
-	sl := cliCtx.StringSlice(key)
+func getRegexMap(ctx context.Context, cmd *cli.Command, key string) map[string]*regexp.Regexp {
+	sl := cmd.StringSlice(key)
 	if len(sl) == 0 {
 		return nil
 	}

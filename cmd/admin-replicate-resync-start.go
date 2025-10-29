@@ -18,19 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/minio/madmin-go/v3"
+	"github.com/openstor/madmin-go/v4"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminReplicateResyncStartCmd = cli.Command{
+var adminReplicateResyncStartCmd = &cli.Command{
 	Name:         "start",
 	Usage:        "start resync to site",
 	Action:       mainAdminReplicateResyncStart,
@@ -74,18 +75,19 @@ func (m resyncMessage) String() string {
 	return console.Colorize(th, strings.Join(messages, "\n"))
 }
 
-func mainAdminReplicateResyncStart(ctx *cli.Context) error {
+func mainAdminReplicateResyncStart(ctx context.Context, cmd *cli.Command) error {
 	// Check argument count
-	argsNr := len(ctx.Args())
+	args := cmd.Args()
+	argsNr := args.Len()
 	if argsNr != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	console.SetColor("ResyncMessage", color.New(color.FgGreen))
 	console.SetColor("ResyncErr", color.New(color.FgRed))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args = cmd.Args()
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(args.Get(0))
@@ -104,11 +106,11 @@ func mainAdminReplicateResyncStart(ctx *cli.Context) error {
 		}
 	}
 	if peer.DeploymentID == "" {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"alias provided is not part of cluster replication.")
 	}
 	res, e := client.SiteReplicationResyncOp(globalContext, peer, madmin.SiteResyncStart)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to start replication resync")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to start replication resync")
 	printMsg(resyncMessage(res))
 
 	return nil

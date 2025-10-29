@@ -26,10 +26,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -39,11 +39,11 @@ const (
 
 // Upload specific flags.
 var (
-	shareFlagContentType = cli.StringFlag{
+	shareFlagContentType = &cli.StringFlag{
 		Name:  "content-type, T",
 		Usage: "specify a content-type to allow",
 	}
-	shareFlagExpire = cli.StringFlag{
+	shareFlagExpire = &cli.StringFlag{
 		Name:  "expire, E",
 		Value: "168h",
 		Usage: "set expiry in NN[h|m|s]",

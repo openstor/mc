@@ -26,11 +26,11 @@ import (
 	"strings"
 
 	"github.com/klauspost/compress/zip"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminClusterIAMImportCmd = cli.Command{
@@ -174,19 +174,19 @@ func processErrIAMEntities(entities madmin.IAMErrEntities) []string {
 	return messages
 }
 
-func checkIAMImportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkIAMImportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainClusterIAMImport - iam info import command
-func mainClusterIAMImport(ctx *cli.Context) error {
+func mainClusterIAMImport(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkIAMImportSyntax(ctx)
+	checkIAMImportSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := filepath.ToSlash(args.Get(0))
 	aliasedURL = filepath.Clean(aliasedURL)
 
@@ -194,7 +194,7 @@ func mainClusterIAMImport(ctx *cli.Context) error {
 	var sz int64
 	f, e := os.Open(args.Get(1))
 	if e != nil {
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to get IAM info")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get IAM info")
 	}
 	if st, e := f.Stat(); e == nil {
 		sz = st.Size()
@@ -203,10 +203,10 @@ func mainClusterIAMImport(ctx *cli.Context) error {
 	r = f
 
 	_, e = zip.NewReader(r.(io.ReaderAt), sz)
-	fatalIf(probe.NewError(e).Trace(args...), fmt.Sprintf("Unable to read zip file %s", args.Get(1)))
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), fmt.Sprintf("Unable to read zip file %s", args.Get(1)))
 
 	f, e = os.Open(args.Get(1))
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get IAM info")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get IAM info")
 	defer f.Close()
 
 	// Create a new MinIO Admin Client

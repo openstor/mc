@@ -17,24 +17,32 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var corsSubcommands = []cli.Command{
-	corsSetCmd,
-	corsGetCmd,
-	corsRemoveCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var corsSubcommands = []*cli.Command{
+	&corsSetCmd,
+	&corsGetCmd,
+	&corsRemoveCmd,
 }
 
 var corsCmd = cli.Command{
-	Name:        "cors",
-	Usage:       "manage bucket CORS configuration",
-	Action:      mainCors,
-	Before:      setGlobalsFromContext,
-	Flags:       globalFlags,
-	Subcommands: corsSubcommands,
+	Name:     "cors",
+	Usage:    "manage bucket CORS configuration",
+	Action:   mainCors,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	Commands: corsSubcommands,
 }
 
-func mainCors(ctx *cli.Context) error {
-	commandNotFound(ctx, corsSubcommands)
+func mainCors(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range corsSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 }

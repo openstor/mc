@@ -18,9 +18,11 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapAccesskeySTSRevokeCmd = cli.Command{
@@ -60,15 +62,15 @@ EXAMPLES:
 }
 
 // mainIdpLdapAccesskeySTSRevoke is the handle for "mc idp ldap accesskey sts-revoke" command.
-func mainIdpLdapAccesskeySTSRevoke(ctx *cli.Context) error {
-	checkSTSRevokeSyntax(ctx)
+func mainIdpLdapAccesskeySTSRevoke(ctx context.Context, cmd *cli.Command) error {
+	checkSTSRevokeSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	user := args.Get(1) // will be empty if --self flag is set
-	tokenRevokeType := ctx.String("token-type")
-	fullRevoke := ctx.Bool("all")
+	tokenRevokeType := cmd.String("token-type")
+	fullRevoke := cmd.Bool("all")
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
@@ -79,7 +81,7 @@ func mainIdpLdapAccesskeySTSRevoke(ctx *cli.Context) error {
 		TokenRevokeType: tokenRevokeType,
 		FullRevoke:      fullRevoke,
 	})
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to revoke tokens for %s", user)
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to revoke tokens for %s", user)
 
 	printMsg(stsRevokeMessage{
 		User:            user,

@@ -22,10 +22,10 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var versionSuspendCmd = cli.Command{
@@ -51,9 +51,9 @@ EXAMPLES:
 }
 
 // checkVersionSuspendSyntax - validate all the passed arguments
-func checkVersionSuspendSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkVersionSuspendSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -78,16 +78,16 @@ func (v versionSuspendMessage) String() string {
 	return console.Colorize("versionSuspendMessage", fmt.Sprintf("%s versioning is suspended", v.URL))
 }
 
-func mainVersionSuspend(cliCtx *cli.Context) error {
+func mainVersionSuspend(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelVersionSuspend := context.WithCancel(globalContext)
 	defer cancelVersionSuspend()
 
 	console.SetColor("versionSuspendMessage", color.New(color.FgGreen))
 
-	checkVersionSuspendSyntax(cliCtx)
+	checkVersionSuspendSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new Client
@@ -95,7 +95,7 @@ func mainVersionSuspend(cliCtx *cli.Context) error {
 	fatalIf(err, "Unable to initialize connection.")
 	fatalIf(client.SetVersion(ctx, "suspend", nil, false), "Unable to suspend versioning")
 	printMsg(versionSuspendMessage{
-		Op:     cliCtx.Command.Name,
+		Op:     "suspend",
 		Status: "success",
 		URL:    aliasedURL,
 	})

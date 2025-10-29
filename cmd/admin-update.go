@@ -19,6 +19,7 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -26,15 +27,15 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminUpdateFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "yes, y",
 		Usage: "Confirms the server update",
 	},
@@ -67,9 +68,9 @@ EXAMPLES:
 
 // serverUpdateMessage is container for ServerUpdate success and failure messages.
 type serverUpdateMessage struct {
-	Status             string                      `json:"status"`
-	ServerURL          string                      `json:"serverURL"`
-	ServerUpdateStatus madmin.ServerUpdateStatusV2 `json:"serverUpdateStatus"`
+	Status             string                    `json:"status"`
+	ServerURL          string                    `json:"serverURL"`
+	ServerUpdateStatus madmin.ServerUpdateStatus `json:"serverUpdateStatus"`
 }
 
 // String colorized serverUpdate message.
@@ -109,21 +110,22 @@ func (s serverUpdateMessage) JSON() string {
 }
 
 // checkAdminServerUpdateSyntax - validate all the passed arguments
-func checkAdminServerUpdateSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminServerUpdateSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() == 0 || args.Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminServerUpdate(ctx *cli.Context) error {
+func mainAdminServerUpdate(ctx context.Context, cmd *cli.Command) error {
 	// Validate serivce update syntax.
-	checkAdminServerUpdateSyntax(ctx)
+	checkAdminServerUpdateSyntax(ctx, cmd)
 
 	// Set color.
 	console.SetColor("ServerUpdate", color.New(color.FgGreen, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	client, err := newAdminClient(aliasedURL)
@@ -131,7 +133,7 @@ func mainAdminServerUpdate(ctx *cli.Context) error {
 
 	updateURL := args.Get(1)
 
-	autoConfirm := ctx.Bool("yes")
+	autoConfirm := cmd.Bool("yes")
 
 	if isTerminal() && !autoConfirm {
 		fmt.Printf("You are about to upgrade *MinIO Server*, please confirm [y/N]: ")
@@ -146,8 +148,8 @@ func mainAdminServerUpdate(ctx *cli.Context) error {
 
 	// Update the specified MinIO server, optionally also
 	// with the provided update URL.
-	us, e := client.ServerUpdateV2(globalContext, madmin.ServerUpdateOpts{
-		DryRun:    ctx.Bool("dry-run"),
+	us, e := client.ServerUpdate(globalContext, madmin.ServerUpdateOpts{
+		DryRun:    cmd.Bool("dry-run"),
 		UpdateURL: updateURL,
 	})
 	fatalIf(probe.NewError(e), "Unable to update the server.")

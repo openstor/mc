@@ -17,11 +17,15 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var idpSubcommands = []cli.Command{
-	idpOpenidCmd,
-	idpLdapCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var idpSubcommands = []*cli.Command{
+	&idpOpenidCmd,
+	&idpLdapCmd,
 }
 
 var idpCmd = cli.Command{
@@ -30,11 +34,11 @@ var idpCmd = cli.Command{
 	Action:          mainIDP,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     idpSubcommands,
+	Commands:        idpSubcommands,
 	HideHelpCommand: true,
 }
 
-func mainIDP(ctx *cli.Context) error {
-	commandNotFound(ctx, idpSubcommands)
+func mainIDP(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

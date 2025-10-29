@@ -32,11 +32,11 @@ import (
 	"golang.org/x/net/http/httpguts"
 
 	"github.com/dustin/go-humanize"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/encrypt"
-	"github.com/minio/minio-go/v7/pkg/tags"
-	"github.com/minio/pkg/v3/env"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/openstor-go/v7/pkg/encrypt"
+	"github.com/openstor/openstor-go/v7/pkg/tags"
+	"github.com/openstor/pkg/v3/env"
 )
 
 // Check if the passed URL represents a folder. It may or may not exist yet.
@@ -171,9 +171,9 @@ func putTargetRetention(ctx context.Context, alias, urlStr string, metadata map[
 		return err.Trace(alias, urlStr)
 	}
 	lockModeStr, ok := metadata[AmzObjectLockMode]
-	lockMode := minio.RetentionMode("")
+	lockMode := openstor.RetentionMode("")
 	if ok {
-		lockMode = minio.RetentionMode(lockModeStr)
+		lockMode = openstor.RetentionMode(lockModeStr)
 		delete(metadata, AmzObjectLockMode)
 	}
 
@@ -313,13 +313,13 @@ func uploadSourceToTargetURL(ctx context.Context, uploadOpts uploadSourceToTarge
 	// to override defaults from source, usually happens in `cp` command.
 	// for the most part source metadata is copied over.
 	if uploadOpts.urls.TargetContent.RetentionEnabled {
-		m := minio.RetentionMode(strings.ToUpper(uploadOpts.urls.TargetContent.RetentionMode))
+		m := openstor.RetentionMode(strings.ToUpper(uploadOpts.urls.TargetContent.RetentionMode))
 		if !m.IsValid() {
 			return uploadOpts.urls.WithError(probe.NewError(errors.New("invalid retention mode")).Trace(targetURL.String()))
 		}
 
 		var dur uint64
-		var unit minio.ValidityUnit
+		var unit openstor.ValidityUnit
 		dur, unit, err = parseRetentionValidity(uploadOpts.urls.TargetContent.RetentionDuration)
 		if err != nil {
 			return uploadOpts.urls.WithError(err.Trace(targetURL.String()))
@@ -337,9 +337,9 @@ func uploadSourceToTargetURL(ctx context.Context, uploadOpts uploadSourceToTarge
 	// to override defaults from source, usually happens in `cp` command.
 	// for the most part source metadata is copied over.
 	if uploadOpts.urls.TargetContent.LegalHoldEnabled {
-		switch minio.LegalHoldStatus(uploadOpts.urls.TargetContent.LegalHold) {
-		case minio.LegalHoldDisabled:
-		case minio.LegalHoldEnabled:
+		switch openstor.LegalHoldStatus(uploadOpts.urls.TargetContent.LegalHold) {
+		case openstor.LegalHoldDisabled:
+		case openstor.LegalHoldEnabled:
 		default:
 			return uploadOpts.urls.WithError(errInvalidArgument().Trace(uploadOpts.urls.TargetContent.LegalHold))
 		}

@@ -17,12 +17,19 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var adminIDPCmd = cli.Command{
-	Name:            "idp",
-	Usage:           "manage MinIO IDentity Provider server configuration",
-	Action:          mainAdminIDP,
+	Name:  "idp",
+	Usage: "manage MinIO IDentity Provider server configuration",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		deprecatedError("mc idp ldap|openid")
+		return nil
+	},
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
 	HideHelpCommand: true,
@@ -31,9 +38,4 @@ var adminIDPCmd = cli.Command{
 
 Please use commands under 'mc idp ldap|openid' instead.
 `,
-}
-
-func mainAdminIDP(_ *cli.Context) error {
-	deprecatedError("mc idp ldap|openid")
-	return nil
 }

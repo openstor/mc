@@ -32,36 +32,36 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var pingFlags = []cli.Flag{
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "count, c",
 		Usage: "perform liveliness check for count number of times",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "error-count, e",
 		Usage: "exit after N consecutive ping errors",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "exit, x",
 		Usage: "exit when server(s) responds and reports being online",
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "interval, i",
 		Usage: "wait interval between each request in seconds",
 		Value: 1,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "distributed, a",
 		Usage: "ping all the servers in the cluster, use it when you have direct access to nodes/pods",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "node",
 		Usage: "ping the specified node",
 	},
@@ -103,9 +103,9 @@ EXAMPLES:
 var stop bool
 
 // Validate command line arguments.
-func checkPingSyntax(cliCtx *cli.Context) {
-	if !cliCtx.Args().Present() {
-		showCommandHelpAndExit(cliCtx, 1) // last argument is exit code
+func checkPingSyntax(ctx context.Context, cmd *cli.Command) {
+	if !cmd.Args().Present() {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -280,7 +280,7 @@ func filterAdminInfo(admClnt *madmin.AdminClient, nodeName string) (madmin.InfoM
 	return madmin.InfoMessage{}, e
 }
 
-func ping(ctx context.Context, cliCtx *cli.Context, anonClient *madmin.AnonymousClient, admInfo madmin.InfoMessage, pingSummary PingSummary, index int) {
+func ping(ctx context.Context, cliCtx *cli.Command, anonClient *madmin.AnonymousClient, admInfo madmin.InfoMessage, pingSummary PingSummary, index int) {
 	var endPointStats []EndPointStats
 	var servers []madmin.ServerProperties
 	if cliCtx.Bool("distributed") || cliCtx.IsSet("node") {
@@ -289,7 +289,7 @@ func ping(ctx context.Context, cliCtx *cli.Context, anonClient *madmin.Anonymous
 	allOK := true
 
 	for result := range anonClient.Alive(ctx, madmin.AliveOpts{}, servers...) {
-		stat := pingStats(cliCtx, result, pingSummary)
+		stat := pingStats(ctx, cliCtx, result, pingSummary)
 		status := "ok "
 		if !result.Online {
 			status = "failed "
@@ -360,7 +360,7 @@ func pad(s, p string, count int, left bool) string {
 	return string(ret)
 }
 
-func pingStats(cliCtx *cli.Context, result madmin.AliveResult, ps PingSummary) ServerStats {
+func pingStats(ctx context.Context, cmd *cli.Command, result madmin.AliveResult, ps PingSummary) ServerStats {
 	var errorString string
 	var sum, avg, dns uint64
 	minPing := uint64(math.MaxUint64)
@@ -381,7 +381,7 @@ func pingStats(cliCtx *cli.Context, result madmin.AliveResult, ps PingSummary) S
 			minPing = 0
 			errorCount = 1
 		}
-		if cliCtx.IsSet("error-count") && errorCount >= cliCtx.Int("error-count") {
+		if cmd.IsSet("error-count") && errorCount >= cmd.Int("error-count") {
 			stop = true
 		}
 
@@ -444,9 +444,9 @@ func watchSignals(ps PingSummary) {
 }
 
 // mainPing is entry point for ping command.
-func mainPing(cliCtx *cli.Context) error {
+func mainPing(ctx context.Context, cmd *cli.Command) error {
 	// check 'ping' cli arguments.
-	checkPingSyntax(cliCtx)
+	checkPingSyntax(ctx, cmd)
 
 	console.SetColor("Info", color.New(color.FgGreen, color.Bold))
 	console.SetColor("InfoFail", color.New(color.FgRed, color.Bold))
@@ -454,7 +454,7 @@ func mainPing(cliCtx *cli.Context) error {
 	ctx, cancel := context.WithCancel(globalContext)
 	defer cancel()
 
-	aliasedURL := cliCtx.Args().Get(0)
+	aliasedURL := cmd.Args().Get(0)
 	admClient, err := newAdminClient(aliasedURL)
 	fatalIf(err.Trace(aliasedURL), "Unable to initialize admin client for `"+aliasedURL+"`.")
 
@@ -462,14 +462,14 @@ func mainPing(cliCtx *cli.Context) error {
 	fatalIf(err.Trace(aliasedURL), "Unable to initialize anonymous client for `"+aliasedURL+"`.")
 
 	var admInfo madmin.InfoMessage
-	if cliCtx.Bool("distributed") {
+	if cmd.Bool("distributed") {
 		var e error
 		admInfo, e = fetchAdminInfo(admClient)
 		fatalIf(probe.NewError(e).Trace(aliasedURL), "Unable to get server info")
 	}
-	if cliCtx.IsSet("node") {
+	if cmd.IsSet("node") {
 		var e error
-		admInfo, e = filterAdminInfo(admClient, cliCtx.String("node"))
+		admInfo, e = filterAdminInfo(admClient, cmd.String("node"))
 		fatalIf(probe.NewError(e).Trace(aliasedURL), "Unable to get server info")
 	}
 	pingSummary := PingSummary{
@@ -482,10 +482,10 @@ func mainPing(cliCtx *cli.Context) error {
 	watchSignals(pingSummary)
 
 	index := 1
-	if cliCtx.IsSet("count") {
-		count := cliCtx.Int("count")
+	if cmd.IsSet("count") {
+		count := cmd.Int("count")
 		if count < 1 {
-			fatalIf(errInvalidArgument().Trace(cliCtx.Args()...), "ping count cannot be less than 1")
+			fatalIf(errInvalidArgument().Trace(cmd.Args().Slice()...), "ping count cannot be less than 1")
 		}
 		for index <= count {
 			// return if consecutive error count more then specified value
@@ -493,7 +493,7 @@ func mainPing(cliCtx *cli.Context) error {
 				printMsg(pingSummary)
 				return nil
 			}
-			ping(ctx, cliCtx, anonClient, admInfo, pingSummary, index)
+			ping(ctx, cmd, anonClient, admInfo, pingSummary, index)
 			index++
 		}
 	} else {
@@ -507,7 +507,7 @@ func mainPing(cliCtx *cli.Context) error {
 					printMsg(pingSummary)
 					return nil
 				}
-				ping(ctx, cliCtx, anonClient, admInfo, pingSummary, index)
+				ping(ctx, cmd, anonClient, admInfo, pingSummary, index)
 				index++
 			}
 		}

@@ -18,27 +18,29 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var adminPolicyEntitiesFlags = []cli.Flag{
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "user, u",
 		Usage: "list policies associated with user(s)",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "group, g",
 		Usage: "list policies associated with group(s)",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "policy, p",
 		Usage: "list users or groups associated with policy",
 	},
 }
 
-var adminPolicyEntitiesCmd = cli.Command{
+var adminPolicyEntitiesCmd = &cli.Command{
 	Name:         "entities",
 	Usage:        "list policy association entities",
 	Action:       mainAdminPolicyEntities,
@@ -70,16 +72,15 @@ EXAMPLES:
 }
 
 // mainAdminPolicyEntities is the handler for "mc admin policy entities" command.
-func mainAdminPolicyEntities(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainAdminPolicyEntities(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	usersToQuery := ctx.StringSlice("user")
-	groupsToQuery := ctx.StringSlice("group")
-	policiesToQuery := ctx.StringSlice("policy")
-
-	args := ctx.Args()
+	usersToQuery := cmd.StringSlice("user")
+	groupsToQuery := cmd.StringSlice("group")
+	policiesToQuery := cmd.StringSlice("policy")
 
 	aliasedURL := args.Get(0)
 

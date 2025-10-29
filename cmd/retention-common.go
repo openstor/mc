@@ -23,21 +23,21 @@ import (
 	"strconv"
 	"time"
 
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
 )
 
 // Structured message depending on the type of console.
 type retentionCmdMessage struct {
-	Op        lockOpType          `json:"op"`
-	Mode      minio.RetentionMode `json:"mode"`
-	Validity  string              `json:"validity"`
-	URLPath   string              `json:"urlpath"`
-	VersionID string              `json:"versionID"`
-	Status    string              `json:"status"`
-	Err       error               `json:"error"`
+	Op        lockOpType             `json:"op"`
+	Mode      openstor.RetentionMode `json:"mode"`
+	Validity  string                 `json:"validity"`
+	URLPath   string                 `json:"urlpath"`
+	VersionID string                 `json:"versionID"`
+	Status    string                 `json:"status"`
+	Err       error                  `json:"error"`
 }
 
 // Colorized message for console printing.
@@ -82,11 +82,11 @@ const (
 
 // Structured message depending on the type of console.
 type retentionBucketMessage struct {
-	Op       lockOpType          `json:"op"`
-	Enabled  string              `json:"enabled"`
-	Mode     minio.RetentionMode `json:"mode"`
-	Validity string              `json:"validity"`
-	Status   string              `json:"status"`
+	Op       lockOpType             `json:"op"`
+	Enabled  string                 `json:"enabled"`
+	Mode     openstor.RetentionMode `json:"mode"`
+	Validity string                 `json:"validity"`
+	Status   string                 `json:"status"`
 }
 
 // Colorized message for console printing.
@@ -109,12 +109,12 @@ func (m retentionBucketMessage) JSON() string {
 	return string(msgBytes)
 }
 
-func getRetainUntilDate(validity uint64, unit minio.ValidityUnit) (string, *probe.Error) {
+func getRetainUntilDate(validity uint64, unit openstor.ValidityUnit) (string, *probe.Error) {
 	if validity == 0 {
 		return "", probe.NewError(fmt.Errorf("invalid validity '%v'", validity))
 	}
 	t := UTCNow()
-	if unit == minio.Years {
+	if unit == openstor.Years {
 		t = t.AddDate(int(validity), 0, 0)
 	} else {
 		t = t.AddDate(0, 0, int(validity))
@@ -124,7 +124,7 @@ func getRetainUntilDate(validity uint64, unit minio.ValidityUnit) (string, *prob
 	return timeStr, nil
 }
 
-func setRetentionSingle(ctx context.Context, op lockOpType, alias, url, versionID string, mode minio.RetentionMode, retainUntil time.Time, bypassGovernance bool) *probe.Error {
+func setRetentionSingle(ctx context.Context, op lockOpType, alias, url, versionID string, mode openstor.RetentionMode, retainUntil time.Time, bypassGovernance bool) *probe.Error {
 	newClnt, err := newClientFromAlias(alias, url)
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func setRetentionSingle(ctx context.Context, op lockOpType, alias, url, versionI
 	return err
 }
 
-func parseRetentionValidity(validityStr string) (uint64, minio.ValidityUnit, *probe.Error) {
+func parseRetentionValidity(validityStr string) (uint64, openstor.ValidityUnit, *probe.Error) {
 	unitStr := string(validityStr[len(validityStr)-1])
 	validityStr = validityStr[:len(validityStr)-1]
 	validity, e := strconv.ParseUint(validityStr, 10, 64)
@@ -157,12 +157,12 @@ func parseRetentionValidity(validityStr string) (uint64, minio.ValidityUnit, *pr
 		return 0, "", probe.NewError(e).Trace(validityStr)
 	}
 
-	var unit minio.ValidityUnit
+	var unit openstor.ValidityUnit
 	switch unitStr {
 	case "d", "D":
-		unit = minio.Days
+		unit = openstor.Days
 	case "y", "Y":
-		unit = minio.Years
+		unit = openstor.Years
 	default:
 		return 0, "", errInvalidArgument().Trace(unitStr)
 	}
@@ -179,7 +179,7 @@ func fatalIfBucketLockNotSupported(ctx context.Context, aliasedURL string) {
 
 // Apply Retention for one object/version or many objects within a given prefix.
 func applyRetention(ctx context.Context, op lockOpType, target, versionID string, timeRef time.Time, withVersions, isRecursive bool,
-	mode minio.RetentionMode, validity uint64, unit minio.ValidityUnit, bypassGovernance bool,
+	mode openstor.RetentionMode, validity uint64, unit openstor.ValidityUnit, bypassGovernance bool,
 ) error {
 	clnt, err := newClient(target)
 	if err != nil {
@@ -257,7 +257,7 @@ func applyRetention(ctx context.Context, op lockOpType, target, versionID string
 }
 
 // applyBucketLock - set object lock configuration.
-func applyBucketLock(op lockOpType, urlStr string, mode minio.RetentionMode, validity uint64, unit minio.ValidityUnit) error {
+func applyBucketLock(op lockOpType, urlStr string, mode openstor.RetentionMode, validity uint64, unit openstor.ValidityUnit) error {
 	client, err := newClient(urlStr)
 	if err != nil {
 		fatalIf(err.Trace(), "Unable to parse the provided url.")

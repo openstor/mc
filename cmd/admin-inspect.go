@@ -18,22 +18,21 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var adminInspectCmd = cli.Command{
-	Name:               "inspect",
-	Usage:              "inspect files on MinIO server",
-	Action:             mainAdminInspect,
+	Name:  "inspect",
+	Usage: "inspect files on MinIO server",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		deprecatedError("mc support inspect")
+		return nil
+	},
 	OnUsageError:       onUsageError,
 	Before:             setGlobalsFromContext,
 	HideHelpCommand:    true,
 	Hidden:             true,
 	CustomHelpTemplate: "Please use 'mc support inspect'",
-}
-
-// mainAdminHeal - the entry function of heal command
-func mainAdminInspect(_ *cli.Context) error {
-	deprecatedError("mc support inspect")
-	return nil
 }

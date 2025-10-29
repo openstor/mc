@@ -19,17 +19,18 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/credentials"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )
 
@@ -58,9 +59,9 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLdapAccesskeyCreateWithLogin(ctx *cli.Context) error {
-	if !ctx.Args().Present() {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func mainIDPLdapAccesskeyCreateWithLogin(ctx context.Context, cmd *cli.Command) error {
+	if !cmd.Args().Present() {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	isTerminal := term.IsTerminal(int(os.Stdin.Fd()))
@@ -69,7 +70,7 @@ func mainIDPLdapAccesskeyCreateWithLogin(ctx *cli.Context) error {
 		fatalIf(probe.NewError(e), "unable to read from STDIN")
 	}
 
-	client, opts := loginLDAPAccesskey(ctx)
+	client, opts := loginLDAPAccesskey(ctx, cmd)
 
 	res, e := client.AddServiceAccountLDAP(globalContext, opts)
 	fatalIf(probe.NewError(e), "unable to add service account")
@@ -88,8 +89,8 @@ func mainIDPLdapAccesskeyCreateWithLogin(ctx *cli.Context) error {
 	return nil
 }
 
-func loginLDAPAccesskey(ctx *cli.Context) (*madmin.AdminClient, madmin.AddServiceAccountReq) {
-	urlStr := ctx.Args().First()
+func loginLDAPAccesskey(ctx context.Context, cmd *cli.Command) (*madmin.AdminClient, madmin.AddServiceAccountReq) {
+	urlStr := cmd.Args().First()
 
 	u, e := url.Parse(urlStr)
 	fatalIf(probe.NewError(e), "unable to parse server URL")
@@ -122,5 +123,5 @@ func loginLDAPAccesskey(ctx *cli.Context) (*madmin.AdminClient, madmin.AddServic
 	})
 	fatalIf(probe.NewError(e), "unable to initialize admin connection")
 
-	return client, accessKeyCreateOpts(ctx, tempCreds.AccessKeyID)
+	return client, accessKeyCreateOpts(ctx, cmd, tempCreds.AccessKeyID)
 }

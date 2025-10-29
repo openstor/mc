@@ -18,9 +18,11 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var corsRemoveCmd = cli.Command{
@@ -46,20 +48,20 @@ EXAMPLES:
 }
 
 // checkCorsRemoveSyntax - validate all the passed arguments
-func checkCorsRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkCorsRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.NArg() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainCorsRemove is the handle for "mc cors remove" command.
-func mainCorsRemove(ctx *cli.Context) error {
-	checkCorsRemoveSyntax(ctx)
+func mainCorsRemove(ctx context.Context, cmd *cli.Command) error {
+	checkCorsRemoveSyntax(ctx, cmd)
 
 	console.SetColor("CorsMessage", color.New(color.FgGreen))
 
 	// args[0] is the ALIAS/BUCKET argument.
-	args := ctx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	client, err := newClient(urlStr)

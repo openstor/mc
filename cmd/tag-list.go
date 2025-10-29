@@ -26,27 +26,27 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var tagListFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "list tags of particular object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "list tags of particular object version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "list tags on all versions for an object",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "recursivley show tags for all objects",
 	},
@@ -147,16 +147,16 @@ func (t tagListMessage) String() string {
 }
 
 // parseTagListSyntax performs command-line input validation for tag list command.
-func parseTagListSyntax(ctx *cli.Context) (targetURL, versionID string, timeRef time.Time, withVersions, recursive bool) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func parseTagListSyntax(ctx context.Context, cmd *cli.Command) (targetURL, versionID string, timeRef time.Time, withVersions, recursive bool) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 
-	targetURL = ctx.Args().Get(0)
-	versionID = ctx.String("version-id")
-	withVersions = ctx.Bool("versions")
-	rewind := ctx.String("rewind")
-	recursive = ctx.Bool("recursive")
+	targetURL = cmd.Args().Get(0)
+	versionID = cmd.String("version-id")
+	withVersions = cmd.Bool("versions")
+	rewind := cmd.String("rewind")
+	recursive = cmd.Bool("recursive")
 
 	if versionID != "" && rewind != "" {
 		fatalIf(errDummy().Trace(), "You cannot specify both --version-id and --rewind flags at the same time")
@@ -175,7 +175,7 @@ func showTags(ctx context.Context, clnt Client, versionID string) {
 
 	tagsMap, err := clnt.GetTags(ctx, versionID)
 	if err != nil {
-		if minio.ToErrorResponse(err.ToGoError()).Code == "NoSuchTagSet" {
+		if openstor.ToErrorResponse(err.ToGoError()).Code == "NoSuchTagSet" {
 			fatalIf(probe.NewError(errors.New("check 'mc tag set --help' on how to set tags")), "No tags found  for "+targetName)
 		}
 		fatalIf(err, "Unable to fetch tags for "+targetName)
@@ -200,7 +200,7 @@ func showTagsSingle(ctx context.Context, alias, url, versionID string) *probe.Er
 	return nil
 }
 
-func mainListTag(cliCtx *cli.Context) error {
+func mainListTag(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelListTag := context.WithCancel(globalContext)
 	defer cancelListTag()
 
@@ -209,7 +209,7 @@ func mainListTag(cliCtx *cli.Context) error {
 	console.SetColor("Value", color.New(color.FgYellow))
 	console.SetColor("NoTags", color.New(color.FgRed))
 
-	targetURL, versionID, timeRef, withVersions, recursive := parseTagListSyntax(cliCtx)
+	targetURL, versionID, timeRef, withVersions, recursive := parseTagListSyntax(ctx, cmd)
 	if timeRef.IsZero() && withVersions {
 		timeRef = time.Now().UTC()
 	}

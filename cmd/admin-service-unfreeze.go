@@ -21,13 +21,13 @@ import (
 	"context"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminServiceUnfreezeCmd = cli.Command{
+var adminServiceUnfreezeCmd = &cli.Command{
 	Name:         "unfreeze",
 	Usage:        "unfreeze S3 API calls on MinIO cluster",
 	Action:       mainAdminServiceUnfreeze,
@@ -69,22 +69,23 @@ func (s serviceUnfreezeCommand) JSON() string {
 }
 
 // checkAdminServiceUnfreezeSyntax - validate all the passed arguments
-func checkAdminServiceUnfreezeSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminServiceUnfreezeSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminServiceUnfreeze(ctx *cli.Context) error {
+func mainAdminServiceUnfreeze(ctx context.Context, cmd *cli.Command) error {
 	// Validate service unfreeze syntax.
-	checkAdminServiceUnfreezeSyntax(ctx)
+	checkAdminServiceUnfreezeSyntax(ctx, cmd)
 
 	// Set color.
 	console.SetColor("ServiceUnfreeze", color.New(color.FgGreen, color.Bold))
 	console.SetColor("FailedServiceUnfreeze", color.New(color.FgRed, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	client, err := newAdminClient(aliasedURL)
@@ -94,7 +95,7 @@ func mainAdminServiceUnfreeze(ctx *cli.Context) error {
 	defer cancel()
 
 	// Unfreeze the specified MinIO server
-	e := client.ServiceUnfreezeV2(ctxt)
+	e := client.ServiceUnfreeze(ctxt)
 	if e != nil {
 		// Attempt an older API server might be old
 		// nolint:staticcheck

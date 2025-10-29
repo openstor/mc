@@ -18,13 +18,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminRebalanceStopCmd = cli.Command{
@@ -65,14 +66,14 @@ func (r rebalanceStopMsg) String() string {
 	return console.Colorize("rebalanceStopMsg", fmt.Sprintf("Rebalance stopped for %s", r.Target))
 }
 
-func mainAdminRebalanceStop(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainAdminRebalanceStop(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	if len(args.Slice()) != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
 	console.SetColor("rebalanceStopMsg", color.New(color.FgGreen))
 
-	args := ctx.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client

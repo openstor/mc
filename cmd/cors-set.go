@@ -18,15 +18,16 @@
 package cmd
 
 import (
+	"context"
 	"io"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/cors"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/cors"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var corsSetCmd = cli.Command{
@@ -90,20 +91,20 @@ func (c corsMessage) JSON() string {
 }
 
 // checkCorsSetSyntax - validate all the passed arguments
-func checkCorsSetSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkCorsSetSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.NArg() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainCorsSet is the handle for "mc cors set" command.
-func mainCorsSet(ctx *cli.Context) error {
-	checkCorsSetSyntax(ctx)
+func mainCorsSet(ctx context.Context, cmd *cli.Command) error {
+	checkCorsSetSyntax(ctx, cmd)
 
 	console.SetColor("CorsMessage", color.New(color.FgGreen))
 
 	// args[0] is the ALIAS/BUCKET argument.
-	args := ctx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	// args[1] is the CORSFILE which is a local file, or in the case of "-", stdin.
@@ -111,11 +112,11 @@ func mainCorsSet(ctx *cli.Context) error {
 	in := os.Stdin
 	if f := args.Get(1); f != "-" {
 		in, e = os.Open(f)
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to open bucket CORS configuration file.")
+		fatalIf(probe.NewError(e).Trace(args.Tail()...), "Unable to open bucket CORS configuration file.")
 		defer in.Close()
 	}
 	corsXML, e := io.ReadAll(in)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to read bucket CORS configuration file.")
+	fatalIf(probe.NewError(e).Trace(args.Tail()...), "Unable to read bucket CORS configuration file.")
 
 	client, err := newClient(urlStr)
 	fatalIf(err.Trace(urlStr), "Unable to initialize client for "+urlStr)

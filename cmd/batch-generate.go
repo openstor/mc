@@ -18,12 +18,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var batchGenerateCmd = cli.Command{
@@ -57,18 +58,18 @@ EXAMPLES:
 }
 
 // checkBatchGenerateSyntax - validate all the passed arguments
-func checkBatchGenerateSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkBatchGenerateSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainBatchGenerate is the handle for "mc batch generate" command.
-func mainBatchGenerate(ctx *cli.Context) error {
-	checkBatchGenerateSyntax(ctx)
+func mainBatchGenerate(ctx context.Context, cmd *cli.Command) error {
+	checkBatchGenerateSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	jobType := args.Get(1)
 

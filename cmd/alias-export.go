@@ -1,15 +1,17 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"context"
+
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var aliasExportCmd = cli.Command{
 	Name:            "export",
-	ShortName:       "e",
+	Aliases:         []string{"e"},
 	Usage:           "export configuration info to stdout",
 	Action:          mainAliasExport,
 	OnUsageError:    onUsageError,
@@ -45,13 +47,13 @@ EXAMPLES:
 }
 
 // checkAliasExportSyntax - verifies input arguments to 'alias export'.
-func checkAliasExportSyntax(ctx *cli.Context) {
-	args := ctx.Args()
-	if ctx.NArg() == 0 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAliasExportSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if cmd.NArg() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
-	if ctx.NArg() > 1 {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+	if cmd.NArg() > 1 {
+		fatalIf(errInvalidArgument().Trace(cmd.Args().Tail()...),
 			"Incorrect number of arguments for alias export command.")
 	}
 
@@ -77,10 +79,10 @@ func exportAlias(alias string) {
 	console.Println(string(buf))
 }
 
-func mainAliasExport(cli *cli.Context) error {
-	args := cli.Args()
+func mainAliasExport(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
 
-	checkAliasExportSyntax(cli)
+	checkAliasExportSyntax(ctx, cmd)
 
 	exportAlias(cleanAlias(args.Get(0)))
 

@@ -20,15 +20,16 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConfigExportCmd = cli.Command{
@@ -95,17 +96,18 @@ func (u configExportMessage) JSON() string {
 }
 
 // checkAdminConfigExportSyntax - validate all the passed arguments
-func checkAdminConfigExportSyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigExportSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() || args.Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminConfigExport(ctx *cli.Context) error {
-	checkAdminConfigExportSyntax(ctx)
+func mainAdminConfigExport(ctx context.Context, cmd *cli.Command) error {
+	checkAdminConfigExportSyntax(ctx, cmd)
 
 	// Export the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -113,7 +115,7 @@ func mainAdminConfigExport(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	// Call get config API
-	buf, e := client.GetConfig(globalContext)
+	buf, e := client.GetConfig(ctx)
 	fatalIf(probe.NewError(e), "Unable to get server config")
 
 	// Print

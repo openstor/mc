@@ -18,10 +18,12 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var quotaInfoCmd = cli.Command{
@@ -47,36 +49,36 @@ EXAMPLES:
 }
 
 // checkQuotaInfoSyntax - validate all the passed arguments
-func checkQuotaInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkQuotaInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainQuotaInfo is the handler for "mc quota info" command.
-func mainQuotaInfo(ctx *cli.Context) error {
-	checkQuotaInfoSyntax(ctx)
+func mainQuotaInfo(ctx context.Context, cmd *cli.Command) error {
+	checkQuotaInfoSyntax(ctx, cmd)
 
 	console.SetColor("QuotaMessage", color.New(color.FgGreen))
 	console.SetColor("QuotaInfo", color.New(color.FgCyan))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	_, targetURL := url2Alias(args[0])
+	_, targetURL := url2Alias(args.Get(0))
 	qCfg, e := client.GetBucketQuota(globalContext, targetURL)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get bucket quota")
-	sz := qCfg.Quota
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get bucket quota")
+	sz := qCfg.Size
 	if qCfg.Size > 0 {
 		sz = qCfg.Size
 	}
 	printMsg(quotaMessage{
-		op:        ctx.Command.Name,
+		op:        cmd.Name,
 		Bucket:    targetURL,
 		Quota:     sz,
 		QuotaType: string(qCfg.Type),

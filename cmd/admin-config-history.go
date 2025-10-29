@@ -18,24 +18,25 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 	"text/tabwriter"
 	"text/template"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var historyListFlags = []cli.Flag{
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "count, n",
 		Usage: "list only last 'n' entries",
 		Value: 10,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "clear, c",
 		Usage: "clear all history",
 	},
@@ -107,35 +108,36 @@ func (u configHistoryMessage) JSON() string {
 }
 
 // checkAdminConfigHistorySyntax - validate all the passed arguments
-func checkAdminConfigHistorySyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigHistorySyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() || args.Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminConfigHistory(ctx *cli.Context) error {
-	checkAdminConfigHistorySyntax(ctx)
+func mainAdminConfigHistory(ctx context.Context, cmd *cli.Command) error {
+	checkAdminConfigHistorySyntax(ctx, cmd)
 
 	console.SetColor("ConfigHistoryMessageRestoreID", color.New(color.Bold))
 	console.SetColor("ConfigHistoryMessageTime", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	if ctx.Bool("clear") {
-		fatalIf(probe.NewError(client.ClearConfigHistoryKV(globalContext, "all")), "Unable to clear server configuration.")
+	if cmd.Bool("clear") {
+		fatalIf(probe.NewError(client.ClearConfigHistoryKV(ctx, "all")), "Unable to clear server configuration.")
 
 		// Print
 		printMsg(configHistoryMessage{})
 		return nil
 	}
 
-	chEntries, e := client.ListConfigHistoryKV(globalContext, ctx.Int("count"))
+	chEntries, e := client.ListConfigHistoryKV(ctx, cmd.Int("count"))
 	fatalIf(probe.NewError(e), "Unable to list server history configuration.")
 
 	hentries := make([]historyEntry, len(chEntries))

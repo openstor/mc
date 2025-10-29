@@ -18,16 +18,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminDecommissionStatusCmd = cli.Command{
@@ -55,18 +56,19 @@ EXAMPLES:
 }
 
 // checkAdminDecommissionStatusSyntax - validate all the passed arguments
-func checkAdminDecommissionStatusSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) > 2 || len(ctx.Args()) == 0 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminDecommissionStatusSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() > 2 || args.Len() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminDecommissionStatus is the handle for "mc admin decomission status" command.
-func mainAdminDecommissionStatus(ctx *cli.Context) error {
-	checkAdminDecommissionStatusSyntax(ctx)
+func mainAdminDecommissionStatus(ctx context.Context, cmd *cli.Command) error {
+	checkAdminDecommissionStatusSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	aliasedURL = filepath.Clean(aliasedURL)
 
@@ -75,8 +77,13 @@ func mainAdminDecommissionStatus(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	if pool := args.Get(1); pool != "" {
-		poolStatus, e := client.StatusPool(globalContext, pool)
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to get status per pool")
+		poolStatus, e := client.StatusPool(ctx, pool)
+		// Convert cli.Args to []string for Trace
+		argsSlice := make([]string, args.Len())
+		for i := 0; i < args.Len(); i++ {
+			argsSlice[i] = args.Get(i)
+		}
+		fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to get status per pool")
 
 		if globalJSON {
 			statusJSONBytes, e := json.MarshalIndent(poolStatus, "", "    ")
@@ -108,14 +115,19 @@ func mainAdminDecommissionStatus(ctx *cli.Context) error {
 			}
 			msg = color.GreenString(msg)
 		} else {
-			errorIf(errDummy().Trace(args...), "This pool is currently not scheduled for decomissioning")
+			errorIf(errDummy().Trace(argsSlice...), "This pool is currently not scheduled for decomissioning")
 			return nil
 		}
 		fmt.Println(msg)
 		return nil
 	}
-	poolStatuses, e := client.ListPoolsStatus(globalContext)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get status for all pools")
+	poolStatuses, e := client.ListPoolsStatus(ctx)
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to get status for all pools")
 
 	if globalJSON {
 		statusJSONBytes, e := json.MarshalIndent(poolStatuses, "", "    ")

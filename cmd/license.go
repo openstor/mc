@@ -18,14 +18,16 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
-var licenseSubcommands = []cli.Command{
-	licenseRegisterCmd,
-	licenseInfoCmd,
-	licenseUpdateCmd,
-	licenseUnregisterCmd,
+var licenseSubcommands = []*cli.Command{
+	&licenseRegisterCmd,
+	&licenseInfoCmd,
+	&licenseUpdateCmd,
+	&licenseUnregisterCmd,
 }
 
 var licenseCmd = cli.Command{
@@ -34,13 +36,18 @@ var licenseCmd = cli.Command{
 	Action:          mainlicense,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     licenseSubcommands,
+	Commands:        licenseSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainlicense is the handle for "mc license" command.
-func mainlicense(ctx *cli.Context) error {
-	commandNotFound(ctx, licenseSubcommands)
+func mainlicense(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range licenseSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "register", "info" have their own main.
 }

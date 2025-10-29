@@ -18,42 +18,43 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var adminAccesskeyListFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "users-only",
-		Usage: "only list user DNs",
+		Usage: "list access keys associated with a user",
 	},
-	cli.BoolFlag{
-		Name:  "temp-only",
-		Usage: "only list temporary access keys",
+	&cli.BoolFlag{
+		Name:  "service-account-only",
+		Usage: "list access keys associated with a service account",
 	},
-	cli.BoolFlag{
-		Name:  "svcacc-only",
-		Usage: "only list service account access keys",
+	&cli.BoolFlag{
+		Name:  "sts-only",
+		Usage: "list access keys associated with a sts user",
 	},
-	cli.BoolFlag{
-		Name:  "self",
-		Usage: "list access keys for the authenticated user",
+	&cli.BoolFlag{
+		Name:  "policy",
+		Usage: "show policy attached to the access key",
 	},
-	cli.BoolFlag{
-		Name:  "all",
-		Usage: "list all access keys for all builtin users",
+	&cli.BoolFlag{
+		Name:  "expired",
+		Usage: "list expired access keys",
 	},
 }
 
 var adminAccesskeyListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list access key pairs for builtin users",
 	Action:       mainAdminAccesskeyList,
 	Before:       setGlobalsFromContext,
@@ -137,19 +138,19 @@ func (m userAccesskeyList) JSON() string {
 	return string(jsonMessageBytes)
 }
 
-func mainAdminAccesskeyList(ctx *cli.Context) error {
-	aliasedURL, tentativeAll, users, opts := commonAccesskeyList(ctx)
+func mainAdminAccesskeyList(ctx context.Context, cmd *cli.Command) error {
+	aliasedURL, tentativeAll, users, opts := commonAccesskeyList(ctx, cmd)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	accessKeysMap, e := client.ListAccessKeysBulk(globalContext, users, opts)
+	accessKeysMap, e := client.ListAccessKeysBulk(ctx, users, opts)
 	if e != nil {
 		if e.Error() == "Access Denied." && tentativeAll {
 			// retry with self
 			opts.All = false
-			accessKeysMap, e = client.ListAccessKeysBulk(globalContext, users, opts)
+			accessKeysMap, e = client.ListAccessKeysBulk(ctx, users, opts)
 		}
 		fatalIf(probe.NewError(e), "Unable to list access keys.")
 	}

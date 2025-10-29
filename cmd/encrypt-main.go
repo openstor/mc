@@ -17,12 +17,16 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var encryptSubcommands = []cli.Command{
-	encryptSetCmd,
-	encryptClearCmd,
-	encryptInfoCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var encryptSubcommands = []*cli.Command{
+	&encryptSetCmd,
+	&encryptClearCmd,
+	&encryptInfoCmd,
 }
 
 var encryptCmd = cli.Command{
@@ -32,12 +36,16 @@ var encryptCmd = cli.Command{
 	Action:          mainEncrypt,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     encryptSubcommands,
+	Commands:        encryptSubcommands,
 }
 
 // mainEncrypt is the handle for "mc encrypt" command.
-func mainEncrypt(ctx *cli.Context) error {
-	commandNotFound(ctx, encryptSubcommands)
+func mainEncrypt(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range encryptSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 	// Sub-commands like "info", "set", "clear" have their own main.
 }

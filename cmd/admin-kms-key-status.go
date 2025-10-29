@@ -18,16 +18,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminKMSKeyStatusCmd = cli.Command{
+var adminKMSKeyStatusCmd = &cli.Command{
 	Name:         "status",
 	Usage:        "request status information for a KMS master key",
 	Action:       mainAdminKMSKeyStatus,
@@ -52,21 +53,22 @@ EXAMPLES:
 }
 
 // adminKMSKeyCmd is the handle for the "mc admin kms key" command.
-func mainAdminKMSKeyStatus(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func mainAdminKMSKeyStatus(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	if args.Len() == 0 || args.Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	console.SetColor("StatusSuccess", color.New(color.FgGreen, color.Bold))
 	console.SetColor("StatusError", color.New(color.FgRed, color.Bold))
 	console.SetColor("StatusUnknown", color.New(color.FgYellow, color.Bold))
 
-	client, err := newAdminClient(ctx.Args().Get(0))
+	client, err := newAdminClient(args.Get(0))
 	fatalIf(err, "Unable to get a configured admin connection.")
 
 	var keyID string
-	if len(ctx.Args()) == 2 {
-		keyID = ctx.Args().Get(1)
+	if args.Len() == 2 {
+		keyID = args.Get(1)
 	}
 	status, e := client.GetKeyStatus(globalContext, keyID)
 	fatalIf(probe.NewError(e), "Failed to get status information")

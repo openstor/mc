@@ -27,8 +27,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/env"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/env"
 
 	"github.com/mitchellh/go-homedir"
 )

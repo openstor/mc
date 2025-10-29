@@ -17,7 +17,11 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var adminPrometheusSubcommands = []cli.Command{
 	adminPrometheusGenerateCmd,
@@ -25,13 +29,12 @@ var adminPrometheusSubcommands = []cli.Command{
 }
 
 var adminPrometheusCmd = cli.Command{
-	Name:            "prometheus",
-	Usage:           "manages prometheus config",
-	Action:          mainAdminPrometheus,
-	Before:          setGlobalsFromContext,
-	Flags:           globalFlags,
-	HideHelpCommand: true,
-	Subcommands:     adminPrometheusSubcommands,
+	Name:     "prometheus",
+	Usage:    "manages prometheus config",
+	Action:   mainAdminPrometheus,
+	Before:   setGlobalsFromContext,
+	Flags:    globalFlags,
+	HideHelp: true,
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -45,7 +48,7 @@ FLAGS:
 }
 
 // mainAdminPrometheus is the handle for "mc admin prometheus" command.
-func mainAdminPrometheus(ctx *cli.Context) error {
-	commandNotFound(ctx, adminPrometheusSubcommands)
+func mainAdminPrometheus(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, adminPrometheusSubcommands)
 	return nil
 }

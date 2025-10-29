@@ -18,15 +18,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConfigSetCmd = cli.Command{
@@ -86,22 +87,23 @@ func (u configSetMessage) JSON() string {
 }
 
 // checkAdminConfigSetSyntax - validate all the passed arguments
-func checkAdminConfigSetSyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() && len(ctx.Args()) < 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigSetSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() && args.Len() < 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // main config set function
-func mainAdminConfigSet(ctx *cli.Context) error {
+func mainAdminConfigSet(ctx context.Context, cmd *cli.Command) error {
 	// Check command arguments
-	checkAdminConfigSetSyntax(ctx)
+	checkAdminConfigSetSyntax(ctx, cmd)
 
 	// Set color preference of command outputs
 	console.SetColor("SetConfigSuccess", color.New(color.FgGreen, color.Bold))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -112,13 +114,13 @@ func mainAdminConfigSet(ctx *cli.Context) error {
 
 	if !strings.Contains(input, madmin.KvSeparator) {
 		// Call get config API
-		hr, e := client.HelpConfigKV(globalContext, args.Get(1), args.Get(2), ctx.Bool("env"))
+		hr, e := client.HelpConfigKV(ctx, args.Get(1), args.Get(2), cmd.Bool("env"))
 		fatalIf(probe.NewError(e), "Unable to get help for the sub-system")
 
 		// Print
 		printMsg(configHelpMessage{
 			Value:   hr,
-			envOnly: ctx.Bool("env"),
+			envOnly: cmd.Bool("env"),
 		})
 
 		return nil
@@ -126,7 +128,7 @@ func mainAdminConfigSet(ctx *cli.Context) error {
 	}
 
 	// Call set config API
-	restart, e := client.SetConfigKV(globalContext, input)
+	restart, e := client.SetConfigKV(ctx, input)
 	fatalIf(probe.NewError(e), "Unable to set '%s' to server", input)
 
 	// Print set config result

@@ -18,45 +18,46 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
-	"github.com/minio/pkg/v3/policy"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/openstor/pkg/v3/policy"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserSTSAcctSubcommands = []cli.Command{
+var adminUserSTSAcctSubcommands = []*cli.Command{
 	adminUserSTSAcctInfoCmd,
 }
 
-var adminUserSTSAcctCmd = cli.Command{
+var adminUserSTSAcctCmd = &cli.Command{
 	Name:            "sts",
 	Usage:           "manage STS accounts",
 	Action:          mainAdminUserSTSAcct,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminUserSTSAcctSubcommands,
+	Commands:        adminUserSTSAcctSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainAdminUserSTSAcct is the handle for "mc admin user sts" command.
-func mainAdminUserSTSAcct(ctx *cli.Context) error {
-	commandNotFound(ctx, adminUserSTSAcctSubcommands)
+func mainAdminUserSTSAcct(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }
 
 var adminUserSTSAcctInfoFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "policy",
 		Usage: "print policy in JSON format",
 	},
 }
 
-var adminUserSTSAcctInfoCmd = cli.Command{
+var adminUserSTSAcctInfoCmd = &cli.Command{
 	Name:         "info",
 	Usage:        "display temporary account info",
 	Action:       mainAdminUserSTSAcctInfo,
@@ -79,20 +80,21 @@ EXAMPLES:
 }
 
 // checkAdminUserSTSAcctInfoSyntax - validate all the passed arguments
-func checkAdminUserSTSAcctInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAdminUserSTSAcctInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
 // mainAdminUserSTSAcctInfo is the handle for "mc admin user sts info" command.
-func mainAdminUserSTSAcctInfo(ctx *cli.Context) error {
-	checkAdminUserSTSAcctInfoSyntax(ctx)
+func mainAdminUserSTSAcctInfo(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserSTSAcctInfoSyntax(ctx, cmd)
 
 	console.SetColor("AccountMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	stsAccount := args.Get(1)
 
@@ -101,17 +103,17 @@ func mainAdminUserSTSAcctInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	stsInfo, e := client.TemporaryAccountInfo(globalContext, stsAccount)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get information of the specified service account")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get information of the specified service account")
 
-	if ctx.Bool("policy") {
+	if cmd.Bool("policy") {
 		if stsInfo.Policy == "" {
-			fatalIf(errDummy().Trace(args...), "No policy found associated to the specified service account. Check the policy of its parent user.")
+			fatalIf(errDummy().Trace(args.Slice()...), "No policy found associated to the specified service account. Check the policy of its parent user.")
 		}
 		p, e := policy.ParseConfig(strings.NewReader(stsInfo.Policy))
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to parse policy.")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to parse policy.")
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", " ")
-		fatalIf(probe.NewError(enc.Encode(p)).Trace(args...), "Unable to write policy to stdout.")
+		fatalIf(probe.NewError(enc.Encode(p)).Trace(args.Slice()...), "Unable to write policy to stdout.")
 		return nil
 	}
 

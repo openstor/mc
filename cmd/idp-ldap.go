@@ -17,19 +17,23 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
+
+	"github.com/urfave/cli/v3"
+)
 
 var (
-	idpLdapSubcommands = []cli.Command{
-		idpLdapAddCmd,
-		idpLdapUpdateCmd,
-		idpLdapRemoveCmd,
-		idpLdapListCmd,
-		idpLdapInfoCmd,
-		idpLdapEnableCmd,
-		idpLdapDisableCmd,
-		idpLdapPolicyCmd,
-		idpLdapAccesskeyCmd,
+	idpLdapSubcommands = []*cli.Command{
+		&idpLdapAddCmd,
+		&idpLdapUpdateCmd,
+		&idpLdapRemoveCmd,
+		&idpLdapListCmd,
+		&idpLdapInfoCmd,
+		&idpLdapEnableCmd,
+		&idpLdapDisableCmd,
+		&idpLdapPolicyCmd,
+		&idpLdapAccesskeyCmd,
 	}
 	idpLdapCmd = cli.Command{
 		Name:            "ldap",
@@ -37,12 +41,12 @@ var (
 		Action:          mainIDPLdap,
 		Before:          setGlobalsFromContext,
 		Flags:           globalFlags,
-		Subcommands:     idpLdapSubcommands,
+		Commands:        idpLdapSubcommands,
 		HideHelpCommand: true,
 	}
 )
 
-func mainIDPLdap(ctx *cli.Context) error {
-	commandNotFound(ctx, idpLdapSubcommands)
+func mainIDPLdap(ctx context.Context, cmd *cli.Command) error {
+	commandNotFound(ctx, cmd, []cli.Command{})
 	return nil
 }

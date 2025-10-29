@@ -17,7 +17,7 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import "github.com/urfave/cli/v3"
 
 var ilmTierCheckCmd = cli.Command{
 	Name:         "check",

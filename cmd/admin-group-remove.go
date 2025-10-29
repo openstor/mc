@@ -18,16 +18,18 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminGroupRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove group or members from a group",
 	Action:       mainAdminGroupRemove,
 	OnUsageError: onUsageError,
@@ -52,20 +54,21 @@ EXAMPLES:
 }
 
 // checkAdminGroupRemoveSyntax - validate all the passed arguments
-func checkAdminGroupRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminGroupRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminGroupRemove is the handle for "mc admin group remove" command.
-func mainAdminGroupRemove(ctx *cli.Context) error {
-	checkAdminGroupRemoveSyntax(ctx)
+func mainAdminGroupRemove(ctx context.Context, cmd *cli.Command) error {
+	checkAdminGroupRemoveSyntax(ctx, cmd)
 
 	console.SetColor("GroupMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -73,7 +76,7 @@ func mainAdminGroupRemove(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	members := []string{}
-	for i := 2; i < ctx.NArg(); i++ {
+	for i := 2; i < cmd.NArg(); i++ {
 		members = append(members, args.Get(i))
 	}
 	gAddRemove := madmin.GroupAddRemove{
@@ -82,11 +85,16 @@ func mainAdminGroupRemove(ctx *cli.Context) error {
 		IsRemove: true,
 	}
 
-	e := client.UpdateGroupMembers(globalContext, gAddRemove)
-	fatalIf(probe.NewError(e).Trace(args...), "Could not perform remove operation")
+	e := client.UpdateGroupMembers(ctx, gAddRemove)
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Could not perform remove operation")
 
 	printMsg(groupMessage{
-		op:        ctx.Command.Name,
+		op:        "remove",
 		GroupName: args.Get(1),
 		Members:   members,
 	})

@@ -23,8 +23,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/cli"
 	"github.com/posener/complete"
+	"github.com/urfave/cli/v3"
 )
 
 // fsComplete knows how to complete file/dir names by the given path
@@ -547,7 +547,7 @@ var completeCmds = map[string]complete.Predictor{
 func flagsToCompleteFlags(flags []cli.Flag) complete.Flags {
 	complFlags := make(complete.Flags)
 	for _, f := range flags {
-		for _, s := range strings.Split(f.GetName(), ",") {
+		for _, s := range strings.Split(f.Names()[0], ",") {
 			var flagName string
 			s = strings.TrimSpace(s)
 			if len(s) == 1 {
@@ -563,11 +563,11 @@ func flagsToCompleteFlags(flags []cli.Flag) complete.Flags {
 
 // This function recursively transforms cli.Command to complete.Command
 // understood by posener/complete library.
-func cmdToCompleteCmd(cmd cli.Command, parentPath string) complete.Command {
+func cmdToCompleteCmd(cmd *cli.Command, parentPath string) complete.Command {
 	var complCmd complete.Command
 	complCmd.Sub = make(complete.Commands)
 
-	for _, subCmd := range cmd.Subcommands {
+	for _, subCmd := range cmd.Commands {
 		if subCmd.Hidden {
 			continue
 		}

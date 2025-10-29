@@ -18,41 +18,42 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminUserSvcAcctSetFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "secret-key",
 		Usage: "set a secret key for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "policy",
 		Usage: "path to a JSON policy file",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "name",
 		Usage: "name for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "description",
 		Usage: "description for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "expiry",
 		Usage: "time of expiration for the service account",
 	},
 }
 
-var adminUserSvcAcctSetCmd = cli.Command{
+var adminUserSvcAcctSetCmd = &cli.Command{
 	Name:         "edit",
 	Aliases:      []string{"set"},
 	Usage:        "edit an existing service account",
@@ -79,28 +80,29 @@ EXAMPLES:
 }
 
 // checkAdminUserSvcAcctSetSyntax - validate all the passed arguments
-func checkAdminUserSvcAcctSetSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAdminUserSvcAcctSetSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
 // mainAdminUserSvcAcctSet is the handle for "mc admin user svcacct set" command.
-func mainAdminUserSvcAcctSet(ctx *cli.Context) error {
-	checkAdminUserSvcAcctSetSyntax(ctx)
+func mainAdminUserSvcAcctSet(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserSvcAcctSetSyntax(ctx, cmd)
 
 	console.SetColor("AccMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	svcAccount := args.Get(1)
 
-	secretKey := ctx.String("secret-key")
-	policyPath := ctx.String("policy")
-	name := ctx.String("name")
-	description := ctx.String("description")
-	expiry := ctx.String("expiry")
+	secretKey := cmd.String("secret-key")
+	policyPath := cmd.String("policy")
+	name := cmd.String("name")
+	description := cmd.String("description")
+	expiry := cmd.String("expiry")
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
@@ -147,7 +149,7 @@ func mainAdminUserSvcAcctSet(ctx *cli.Context) error {
 	}
 
 	e := client.UpdateServiceAccount(globalContext, svcAccount, opts)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to edit the specified service account")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to edit the specified service account")
 
 	printMsg(acctMessage{
 		op:        svcAccOpSet,

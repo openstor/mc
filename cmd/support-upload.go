@@ -18,30 +18,31 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // profile command flags.
 var (
 	uploadFlags = append(globalFlags,
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "issue",
 			Usage: "SUBNET issue number to which the file is to be uploaded",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "comment",
 			Usage: "comment to be posted on the issue along with the file",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "enc",
 			Usage: "encrypt content with key only accessible to minio employees",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "dev",
 			Usage:  "Development mode",
 			Hidden: true,
@@ -92,39 +93,39 @@ EXAMPLES:
 `,
 }
 
-func checkSupportUploadSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportUploadSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	if ctx.Int("issue") <= 0 {
+	if cmd.Int("issue") <= 0 {
 		fatal(errDummy().Trace(), "Invalid issue number")
 	}
 }
 
 // mainSupportUpload is the handle for "mc support upload" command.
-func mainSupportUpload(ctx *cli.Context) error {
+func mainSupportUpload(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkSupportUploadSyntax(ctx)
+	checkSupportUploadSyntax(ctx, cmd)
 	setSuccessMessageColor()
 
 	// Get the alias parameter from cli
-	aliasedURL := ctx.Args().Get(0)
-	alias, apiKey := initSubnetConnectivity(ctx, aliasedURL, true)
+	aliasedURL := cmd.Args().Get(0)
+	alias, apiKey := initSubnetConnectivity(ctx, cmd, aliasedURL, true)
 	if len(apiKey) == 0 {
 		// api key not passed as flag. Check that the cluster is registered.
 		apiKey = validateClusterRegistered(alias, true)
 	}
 
 	// Main execution
-	execSupportUpload(ctx, alias, apiKey)
+	execSupportUpload(ctx, cmd, alias, apiKey)
 	return nil
 }
 
-func execSupportUpload(ctx *cli.Context, alias, apiKey string) {
-	filePath := ctx.Args().Get(1)
-	issueNum := ctx.Int("issue")
-	msg := ctx.String("comment")
+func execSupportUpload(ctx context.Context, cmd *cli.Command, alias, apiKey string) {
+	filePath := cmd.Args().Get(1)
+	issueNum := cmd.Int("issue")
+	msg := cmd.String("comment")
 
 	params := url.Values{}
 	params.Add("issueNumber", fmt.Sprintf("%d", issueNum))
@@ -141,7 +142,7 @@ func execSupportUpload(ctx *cli.Context, alias, apiKey string) {
 		ReqURL:       reqURL,
 		Headers:      headers,
 		AutoCompress: true,
-		AutoEncrypt:  ctx.Bool("enc"),
+		AutoEncrypt:  cmd.Bool("enc"),
 		Params:       params,
 	}).UploadFileToSubnet()
 	if e != nil {

@@ -18,25 +18,26 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/set"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/set"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapPolicyAttachFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "user, u",
 		Usage: "attach policy to user by DN or by login name",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "group, g",
 		Usage: "attach policy to LDAP Group DN",
 	},
@@ -79,18 +80,18 @@ EXAMPLES:
 // plus (+), equal (=), comma (,), period (.), at (@), underscore (_), and
 // hyphen (-).
 
-func mainIDPLdapPolicyAttach(ctx *cli.Context) error {
+func mainIDPLdapPolicyAttach(ctx context.Context, cmd *cli.Command) error {
 	// We need exactly one alias, and at least one policy.
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1)
+	if cmd.Args().Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
-	user := ctx.String("user")
-	group := ctx.String("group")
+	user := cmd.String("user")
+	group := cmd.String("group")
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
-	policies := args[1:]
+	policies := args.Tail()
 	req := madmin.PolicyAssociationReq{
 		Policies: policies,
 		User:     user,
@@ -158,11 +159,11 @@ func (m policyAssociationMessage) JSON() string {
 }
 
 var idpLdapPolicyDetachFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "user, u",
 		Usage: "attach policy to user by DN or by login name",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "group, g",
 		Usage: "attach policy to LDAP Group DN",
 	},
@@ -205,24 +206,24 @@ EXAMPLES:
 // plus (+), equal (=), comma (,), period (.), at (@), underscore (_), and
 // hyphen (-).
 
-func mainIDPLdapPolicyDetach(ctx *cli.Context) error {
+func mainIDPLdapPolicyDetach(ctx context.Context, cmd *cli.Command) error {
 	// We need exactly one alias, and at least one policy.
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1)
+	if cmd.Args().Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	user := ctx.String("user")
-	group := ctx.String("group")
+	user := cmd.String("user")
+	group := cmd.String("group")
 
 	if user == "" && group == "" {
 		e := errors.New("at least one of --user or --group is required.")
 		fatalIf(probe.NewError(e), "Missing flag in command")
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
-	policies := args[1:]
+	policies := args.Tail()
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
@@ -248,15 +249,15 @@ func mainIDPLdapPolicyDetach(ctx *cli.Context) error {
 }
 
 var idpLdapPolicyEntitiesFlags = []cli.Flag{
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "user, u",
 		Usage: "list policies associated with user(s)",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "group, g",
 		Usage: "list policies associated with group(s)",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "policy, p",
 		Usage: "list users or groups associated with policy",
 	},
@@ -299,16 +300,16 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLdapPolicyEntities(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPLdapPolicyEntities(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	usersToQuery := ctx.StringSlice("user")
-	groupsToQuery := ctx.StringSlice("group")
-	policiesToQuery := ctx.StringSlice("policy")
+	usersToQuery := cmd.StringSlice("user")
+	groupsToQuery := cmd.StringSlice("group")
+	policiesToQuery := cmd.StringSlice("policy")
 
-	args := ctx.Args()
+	args := cmd.Args()
 
 	aliasedURL := args.Get(0)
 

@@ -21,11 +21,11 @@ import (
 	"context"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateExportCmd = cli.Command{
@@ -54,9 +54,9 @@ EXAMPLES:
 }
 
 // checkReplicateExportSyntax - validate all the passed arguments
-func checkReplicateExportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateExportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -83,25 +83,25 @@ func (r replicateExportMessage) String() string {
 	return string(msgBytes)
 }
 
-func mainReplicateExport(cliCtx *cli.Context) error {
+func mainReplicateExport(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelReplicateExport := context.WithCancel(globalContext)
 	defer cancelReplicateExport()
 
 	console.SetColor("replicateExportMessage", color.New(color.FgGreen))
 	console.SetColor("replicateExportFailure", color.New(color.FgRed))
 
-	checkReplicateExportSyntax(cliCtx)
+	checkReplicateExportSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
 	fatalIf(err, "Unable to initialize connection.")
 	rCfg, err := client.GetReplication(ctx)
-	fatalIf(err.Trace(args...), "Unable to get replication configuration")
+	fatalIf(err.Trace(args.Slice()...), "Unable to get replication configuration")
 	printMsg(replicateExportMessage{
-		Op:                cliCtx.Command.Name,
+		Op:                "export",
 		Status:            "success",
 		URL:               aliasedURL,
 		ReplicationConfig: rCfg,

@@ -17,18 +17,22 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var replicateSubcommands = []cli.Command{
-	replicateAddCmd,
-	replicateUpdateCmd,
-	replicateListCmd,
-	replicateStatusCmd,
-	replicateResyncCmd,
-	replicateExportCmd,
-	replicateImportCmd,
-	replicateRemoveCmd,
-	replicateBacklogCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var replicateSubcommands = []*cli.Command{
+	&replicateAddCmd,
+	&replicateUpdateCmd,
+	&replicateListCmd,
+	&replicateStatusCmd,
+	&replicateResyncCmd,
+	&replicateExportCmd,
+	&replicateImportCmd,
+	&replicateRemoveCmd,
+	&replicateBacklogCmd,
 }
 
 var replicateCmd = cli.Command{
@@ -38,12 +42,17 @@ var replicateCmd = cli.Command{
 	Action:          mainReplicate,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     replicateSubcommands,
+	Commands:        replicateSubcommands,
 }
 
 // mainReplicate is the handle for "mc replicate" command.
-func mainReplicate(ctx *cli.Context) error {
-	commandNotFound(ctx, replicateSubcommands)
+func mainReplicate(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range replicateSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "list", "clear", "add" have their own main.
 }

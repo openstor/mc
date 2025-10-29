@@ -18,8 +18,10 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"context"
+
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var supportProxyShowCmd = cli.Command{
@@ -65,20 +67,20 @@ func (s supportProxyShowMessage) JSON() string {
 	return toJSON(s)
 }
 
-func checkSupportProxyShowSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportProxyShowSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainSupportProxyShow is the handler for "mc support proxy show" command.
-func mainSupportProxyShow(ctx *cli.Context) error {
+func mainSupportProxyShow(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkSupportProxyShowSyntax(ctx)
+	checkSupportProxyShowSyntax(ctx, cmd)
 	setSuccessMessageColor()
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	alias, _ := url2Alias(aliasedURL)
 

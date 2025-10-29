@@ -18,17 +18,19 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var aliasRemoveCmd = cli.Command{
-	Name:      "remove",
-	ShortName: "rm",
-	Usage:     "remove an alias from configuration file",
-	Action: func(ctx *cli.Context) error {
-		return mainAliasRemove(ctx)
+	Name:    "remove",
+	Aliases: []string{"rm"},
+	Usage:   "remove an alias from configuration file",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		return mainAliasRemove(ctx, cmd)
 	},
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
@@ -51,11 +53,11 @@ EXAMPLES:
 }
 
 // checkAliasRemoveSyntax - verifies input arguments to 'alias remove'.
-func checkAliasRemoveSyntax(ctx *cli.Context) {
-	args := ctx.Args()
+func checkAliasRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
 
-	if len(ctx.Args()) != 1 {
-		fatalIf(errInvalidArgument().Trace(args...),
+	if cmd.NArg() != 1 {
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"Incorrect number of arguments for alias remove command.")
 	}
 
@@ -66,12 +68,12 @@ func checkAliasRemoveSyntax(ctx *cli.Context) {
 }
 
 // mainAliasRemove is the handle for "mc alias rm" command.
-func mainAliasRemove(ctx *cli.Context) error {
-	checkAliasRemoveSyntax(ctx)
+func mainAliasRemove(ctx context.Context, cmd *cli.Command) error {
+	checkAliasRemoveSyntax(ctx, cmd)
 
 	console.SetColor("AliasMessage", color.New(color.FgGreen))
 
-	args := ctx.Args()
+	args := cmd.Args()
 	alias := args.Get(0)
 
 	aliasMsg := removeAlias(alias) // Remove an alias

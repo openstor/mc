@@ -22,27 +22,27 @@ import (
 	"errors"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var eventRemoveFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "force",
 		Usage: "force removing all bucket notifications",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "event",
 		Value: "put,delete,get",
 		Usage: "filter specific type of event. Defaults to all event",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "prefix",
 		Usage: "filter event associated to the specified prefix",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "suffix",
 		Usage: "filter event associated to the specified suffix",
 	},
@@ -50,7 +50,7 @@ var eventRemoveFlags = []cli.Flag{
 
 var eventRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove a bucket notification; '--force' removes all bucket notifications",
 	Action:       mainEventRemove,
 	OnUsageError: onUsageError,
@@ -75,11 +75,11 @@ EXAMPLES:
 }
 
 // checkEventRemoveSyntax - validate all the passed arguments
-func checkEventRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkEventRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	if len(ctx.Args()) == 1 && !ctx.Bool("force") {
+	if cmd.Args().Len() == 1 && !cmd.Bool("force") {
 		fatalIf(probe.NewError(errors.New("")), "--force flag needs to be passed to remove all bucket notifications.")
 	}
 }
@@ -103,19 +103,19 @@ func (u eventRemoveMessage) String() string {
 	return msg
 }
 
-func mainEventRemove(cliCtx *cli.Context) error {
+func mainEventRemove(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelEventRemove := context.WithCancel(globalContext)
 	defer cancelEventRemove()
 
 	console.SetColor("Event", color.New(color.FgGreen, color.Bold))
 
-	checkEventRemoveSyntax(cliCtx)
+	checkEventRemoveSyntax(ctx, cmd)
 
-	args := cliCtx.Args()
+	args := cmd.Args()
 	path := args.Get(0)
 
 	arn := ""
-	if len(args) == 2 {
+	if args.Len() == 2 {
 		arn = args.Get(1)
 	}
 
@@ -130,9 +130,9 @@ func mainEventRemove(cliCtx *cli.Context) error {
 	}
 
 	// flags for the attributes of the even
-	event := cliCtx.String("event")
-	prefix := cliCtx.String("prefix")
-	suffix := cliCtx.String("suffix")
+	event := cmd.String("event")
+	prefix := cmd.String("prefix")
+	suffix := cmd.String("suffix")
 
 	err = s3Client.RemoveNotificationConfig(ctx, arn, event, prefix, suffix)
 	if err != nil {

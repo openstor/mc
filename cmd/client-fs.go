@@ -37,17 +37,17 @@ import (
 	"github.com/pkg/xattr"
 	"github.com/rjeczalik/notify"
 
-	xfilepath "github.com/minio/filepath"
-	"github.com/minio/mc/pkg/disk"
-	"github.com/minio/mc/pkg/hookreader"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/cors"
-	"github.com/minio/minio-go/v7/pkg/encrypt"
-	"github.com/minio/minio-go/v7/pkg/lifecycle"
-	"github.com/minio/minio-go/v7/pkg/notification"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	xfilepath "github.com/openstor/filepath"
+	"github.com/openstor/mc/pkg/disk"
+	"github.com/openstor/mc/pkg/hookreader"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/openstor-go/v7/pkg/cors"
+	"github.com/openstor/openstor-go/v7/pkg/encrypt"
+	"github.com/openstor/openstor-go/v7/pkg/lifecycle"
+	"github.com/openstor/openstor-go/v7/pkg/notification"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
 )
 
 // filesystem client
@@ -1222,7 +1222,7 @@ func (f *fsClient) RemoveBucket(_ context.Context, forceRemove bool) *probe.Erro
 }
 
 // Set object lock configuration of bucket.
-func (f *fsClient) SetObjectLockConfig(_ context.Context, _ minio.RetentionMode, _ uint64, _ minio.ValidityUnit) *probe.Error {
+func (f *fsClient) SetObjectLockConfig(_ context.Context, _ openstor.RetentionMode, _ uint64, _ openstor.ValidityUnit) *probe.Error {
 	return probe.NewError(APINotImplemented{
 		API:     "SetObjectLockConfig",
 		APIType: "filesystem",
@@ -1230,7 +1230,7 @@ func (f *fsClient) SetObjectLockConfig(_ context.Context, _ minio.RetentionMode,
 }
 
 // Get object lock configuration of bucket.
-func (f *fsClient) GetObjectLockConfig(_ context.Context) (status string, mode minio.RetentionMode, validity uint64, unit minio.ValidityUnit, err *probe.Error) {
+func (f *fsClient) GetObjectLockConfig(_ context.Context) (status string, mode openstor.RetentionMode, validity uint64, unit openstor.ValidityUnit, err *probe.Error) {
 	return "", "", 0, "", probe.NewError(APINotImplemented{
 		API:     "GetObjectLockConfig",
 		APIType: "filesystem",
@@ -1246,14 +1246,14 @@ func (f *fsClient) GetAccessRules(_ context.Context) (map[string]string, *probe.
 }
 
 // Set object retention for a given object.
-func (f *fsClient) PutObjectRetention(_ context.Context, _ string, _ minio.RetentionMode, _ time.Time, _ bool) *probe.Error {
+func (f *fsClient) PutObjectRetention(_ context.Context, _ string, _ openstor.RetentionMode, _ time.Time, _ bool) *probe.Error {
 	return probe.NewError(APINotImplemented{
 		API:     "PutObjectRetention",
 		APIType: "filesystem",
 	})
 }
 
-func (f *fsClient) GetObjectRetention(_ context.Context, _ string) (minio.RetentionMode, time.Time, *probe.Error) {
+func (f *fsClient) GetObjectRetention(_ context.Context, _ string) (openstor.RetentionMode, time.Time, *probe.Error) {
 	return "", time.Time{}, probe.NewError(APINotImplemented{
 		API:     "GetObjectRetention",
 		APIType: "filesystem",
@@ -1261,7 +1261,7 @@ func (f *fsClient) GetObjectRetention(_ context.Context, _ string) (minio.Retent
 }
 
 // Set object legal hold for a given object.
-func (f *fsClient) PutObjectLegalHold(_ context.Context, _ string, _ minio.LegalHoldStatus) *probe.Error {
+func (f *fsClient) PutObjectLegalHold(_ context.Context, _ string, _ openstor.LegalHoldStatus) *probe.Error {
 	return probe.NewError(APINotImplemented{
 		API:     "PutObjectLegalHold",
 		APIType: "filesystem",
@@ -1269,7 +1269,7 @@ func (f *fsClient) PutObjectLegalHold(_ context.Context, _ string, _ minio.Legal
 }
 
 // Get object legal hold for a given object.
-func (f *fsClient) GetObjectLegalHold(_ context.Context, _ string) (minio.LegalHoldStatus, *probe.Error) {
+func (f *fsClient) GetObjectLegalHold(_ context.Context, _ string) (openstor.LegalHoldStatus, *probe.Error) {
 	return "", probe.NewError(APINotImplemented{
 		API:     "GetObjectLegalHold",
 		APIType: "filesystem",
@@ -1450,8 +1450,8 @@ func (f *fsClient) SetLifecycle(_ context.Context, _ *lifecycle.Configuration) *
 }
 
 // Get version info for a bucket, not implemented.
-func (f *fsClient) GetVersion(_ context.Context) (minio.BucketVersioningConfiguration, *probe.Error) {
-	return minio.BucketVersioningConfiguration{}, probe.NewError(APINotImplemented{
+func (f *fsClient) GetVersion(_ context.Context) (openstor.BucketVersioningConfiguration, *probe.Error) {
+	return openstor.BucketVersioningConfiguration{}, probe.NewError(APINotImplemented{
 		API:     "GetVersion",
 		APIType: "filesystem",
 	})

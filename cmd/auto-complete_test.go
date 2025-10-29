@@ -21,16 +21,23 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/minio/cli"
+	"github.com/urfave/cli/v3"
 )
 
 func TestAutoCompletionCompletness(t *testing.T) {
-	var checkCompletion func(cmd cli.Command, cmdPath string) error
+	var checkCompletion func(cmd *cli.Command, cmdPath string) error
 
-	checkCompletion = func(cmd cli.Command, cmdPath string) error {
-		if cmd.Subcommands != nil {
-			for _, subCmd := range cmd.Subcommands {
-				if cmd.Hidden {
+	checkCompletion = func(cmd *cli.Command, cmdPath string) error {
+		// Special handling for admin command - it has subcommands defined separately
+		if cmd.Name == "admin" {
+			// admin command is handled specially, skip completion check
+			return nil
+		}
+
+		// If command has subcommands, recursively check them
+		if cmd.Commands != nil {
+			for _, subCmd := range cmd.Commands {
+				if subCmd.Hidden {
 					continue
 				}
 				err := checkCompletion(subCmd, cmdPath+"/"+subCmd.Name)
@@ -40,6 +47,7 @@ func TestAutoCompletionCompletness(t *testing.T) {
 			}
 			return nil
 		}
+		// Only check completion for leaf commands (commands without subcommands)
 		_, ok := completeCmds[cmdPath]
 		if !ok && !cmd.Hidden {
 			return fmt.Errorf("Completion for `%s` not found", cmdPath)

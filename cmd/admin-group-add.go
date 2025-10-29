@@ -18,15 +18,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminGroupAddCmd = cli.Command{
@@ -56,9 +57,10 @@ EXAMPLES:
 }
 
 // checkAdminGroupAddSyntax - validate all the passed arguments
-func checkAdminGroupAddSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) < 3 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminGroupAddSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() < 3 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -115,13 +117,13 @@ func (u groupMessage) JSON() string {
 }
 
 // mainAdminGroupAdd is the handle for "mc admin group add" command.
-func mainAdminGroupAdd(ctx *cli.Context) error {
-	checkAdminGroupAddSyntax(ctx)
+func mainAdminGroupAdd(ctx context.Context, cmd *cli.Command) error {
+	checkAdminGroupAddSyntax(ctx, cmd)
 
 	console.SetColor("GroupMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -129,7 +131,7 @@ func mainAdminGroupAdd(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	members := []string{}
-	for i := 2; i < ctx.NArg(); i++ {
+	for i := 2; i < cmd.NArg(); i++ {
 		members = append(members, args.Get(i))
 	}
 	gAddRemove := madmin.GroupAddRemove{
@@ -137,10 +139,15 @@ func mainAdminGroupAdd(ctx *cli.Context) error {
 		Members:  members,
 		IsRemove: false,
 	}
-	fatalIf(probe.NewError(client.UpdateGroupMembers(globalContext, gAddRemove)).Trace(args...), "Unable to add new group")
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(client.UpdateGroupMembers(ctx, gAddRemove)).Trace(argsSlice...), "Unable to add new group")
 
 	printMsg(groupMessage{
-		op:        ctx.Command.Name,
+		op:        "add",
 		GroupName: args.Get(1),
 		Members:   members,
 	})

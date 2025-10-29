@@ -19,47 +19,48 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/policy"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/policy"
+	"github.com/urfave/cli/v3"
 )
 
 var idpLdapAccesskeyCreateFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "access-key",
 		Usage: "set an access key for the account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "secret-key",
 		Usage: "set a secret key for the  account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "policy",
 		Usage: "path to a JSON policy file",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "name",
 		Usage: "friendly name for the account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "description",
 		Usage: "description for the account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "expiry-duration",
 		Usage: "duration before the access key expires",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "expiry",
 		Usage: "expiry date for the access key",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "login",
 		Usage:  "log in using ldap credentials to generate access key pair for future use",
 		Hidden: true,
@@ -97,24 +98,24 @@ EXAMPLES:
 `,
 }
 
-func mainIDPLdapAccesskeyCreate(ctx *cli.Context) error {
-	return commonAccesskeyCreate(ctx, true)
+func mainIDPLdapAccesskeyCreate(ctx context.Context, cmd *cli.Command) error {
+	return commonAccesskeyCreate(ctx, cmd, true)
 }
 
-func commonAccesskeyCreate(ctx *cli.Context, ldap bool) error {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func commonAccesskeyCreate(ctx context.Context, cmd *cli.Command, ldap bool) error {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	targetUser := args.Get(1)
 
-	if ctx.Bool("login") {
+	if cmd.Bool("login") {
 		deprecatedError("mc idp ldap accesskey create-with-login")
 	}
 
-	opts := accessKeyCreateOpts(ctx, targetUser)
+	opts := accessKeyCreateOpts(ctx, cmd, targetUser)
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
@@ -141,14 +142,14 @@ func commonAccesskeyCreate(ctx *cli.Context, ldap bool) error {
 	return nil
 }
 
-func accessKeyCreateOpts(ctx *cli.Context, targetUser string) madmin.AddServiceAccountReq {
-	name := ctx.String("name")
-	expVal := ctx.String("expiry")
-	policyPath := ctx.String("policy")
-	accessKey := ctx.String("access-key")
-	secretKey := ctx.String("secret-key")
-	description := ctx.String("description")
-	expDurVal := ctx.Duration("expiry-duration")
+func accessKeyCreateOpts(ctx context.Context, cmd *cli.Command, targetUser string) madmin.AddServiceAccountReq {
+	name := cmd.String("name")
+	expVal := cmd.String("expiry")
+	policyPath := cmd.String("policy")
+	accessKey := cmd.String("access-key")
+	secretKey := cmd.String("secret-key")
+	description := cmd.String("description")
+	expDurVal := cmd.Duration("expiry-duration")
 
 	// generate access key and secret key
 	if len(accessKey) <= 0 || len(secretKey) <= 0 {

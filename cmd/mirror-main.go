@@ -32,119 +32,119 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/encrypt"
-	"github.com/minio/minio-go/v7/pkg/notification"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/openstor-go/v7/pkg/encrypt"
+	"github.com/openstor/openstor-go/v7/pkg/notification"
+	"github.com/openstor/pkg/v3/console"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/urfave/cli/v3"
 )
 
 // mirror specific flags.
 var (
 	mirrorFlags = []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "force",
 			Usage:  "force allows forced overwrite or removal of object(s) on target",
 			Hidden: true, // Hidden since this option is deprecated.
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "overwrite",
 			Usage: "overwrite object(s) on target if it differs from source",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "fake",
 			Usage:  "perform a fake mirror operation",
 			Hidden: true, // deprecated 2022
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "dry-run",
 			Usage: "perform a fake mirror operation",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "watch, w",
 			Usage: "watch and synchronize changes",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "remove",
 			Usage: "remove extraneous object(s) on target",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "region",
 			Usage: "specify region when creating new bucket(s) on target",
 			Value: "us-east-1",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "preserve, a",
 			Usage: "preserve file(s)/object(s) attributes and bucket(s) policy/locking configuration(s) on target bucket(s)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "md5",
 			Usage:  "force all upload(s) to calculate md5sum checksum",
 			Hidden: true,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:   "multi-master",
 			Usage:  "enable multi-master multi-site setup",
 			Hidden: true,
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "active-active",
 			Usage: "enable active-active multi-site setup",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "disable-multipart",
 			Usage: "disable multipart upload feature",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "exclude",
 			Usage: "exclude object(s) that match specified object name pattern",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "exclude-bucket",
 			Usage: "exclude bucket(s) that match specified bucket name pattern",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "exclude-storageclass",
 			Usage: "exclude object(s) that match the specified storage class",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "older-than",
 			Usage: "filter object(s) older than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "newer-than",
 			Usage: "filter object(s) newer than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "storage-class, sc",
 			Usage: "specify storage class for new object(s) on target",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "attr",
 			Usage: "add custom metadata for all objects",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "monitoring-address",
 			Usage: "if specified, a new prometheus endpoint will be created to report mirroring activity. (eg: localhost:8081)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "retry",
 			Usage: "if specified, will enable retrying on a per object basis if errors occur",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "summary",
 			Usage: "print a summary of the mirror session",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "skip-errors",
 			Usage: "skip any errors when mirroring",
 		},
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "max-workers",
 			Usage: "maximum number of concurrent copies (default: autodetect)",
 		},
@@ -983,13 +983,13 @@ func getEventPathURLWin(srcURL, eventPath string) string {
 }
 
 // runMirror - mirrors all buckets to another S3 server
-func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, encKeyDB map[string][]prefixSSEPair) bool {
+func runMirror(ctx context.Context, srcURL, dstURL string, cmd *cli.Command, encKeyDB map[string][]prefixSSEPair) bool {
 	// Parse metadata.
 	userMetadata := make(map[string]string)
-	if cli.String("attr") != "" {
+	if cmd.String("attr") != "" {
 		var err *probe.Error
-		userMetadata, err = getMetaDataEntry(cli.String("attr"))
-		fatalIf(err, "Unable to parse attribute %v", cli.String("attr"))
+		userMetadata, err = getMetaDataEntry(cmd.String("attr"))
+		fatalIf(err, "Unable to parse attribute %v", cmd.String("attr"))
 	}
 
 	srcClt, err := newClient(srcURL)
@@ -999,19 +999,19 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 	fatalIf(err, "Unable to initialize `"+dstURL+"`.")
 
 	// This is kept for backward compatibility, `--force` means --overwrite.
-	isOverwrite := cli.Bool("force")
+	isOverwrite := cmd.Bool("force")
 	if !isOverwrite {
-		isOverwrite = cli.Bool("overwrite")
+		isOverwrite = cmd.Bool("overwrite")
 	}
 
-	isWatch := cli.Bool("watch") || cli.Bool("multi-master")
-	isActiveActive := cli.Bool("active-active")
-	isRemove := cli.Bool("remove")
-	md5, checksum := parseChecksum(cli)
+	isWatch := cmd.Bool("watch") || cmd.Bool("multi-master")
+	isActiveActive := cmd.Bool("active-active")
+	isRemove := cmd.Bool("remove")
+	md5, checksum := parseChecksum(cmd)
 
 	// preserve is also expected to be overwritten if necessary
-	isMetadata := cli.Bool("a") || isWatch || len(userMetadata) > 0
-	isFake := cli.Bool("fake") || cli.Bool("dry-run")
+	isMetadata := cmd.Bool("a") || isWatch || len(userMetadata) > 0
+	isFake := cmd.Bool("fake") || cmd.Bool("dry-run")
 
 	mopts := mirrorOptions{
 		isFake:                isFake,
@@ -1019,22 +1019,22 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 		isOverwrite:           isOverwrite,
 		isWatch:               isWatch,
 		isMetadata:            isMetadata,
-		isSummary:             cli.Bool("summary"),
-		isRetriable:           cli.Bool("retry"),
+		isSummary:             cmd.Bool("summary"),
+		isRetriable:           cmd.Bool("retry"),
 		md5:                   md5,
 		checksum:              checksum,
-		disableMultipart:      cli.Bool("disable-multipart"),
-		skipErrors:            cli.Bool("skip-errors"),
-		excludeOptions:        cli.StringSlice("exclude"),
-		excludeBuckets:        cli.StringSlice("exclude-bucket"),
-		excludeStorageClasses: cli.StringSlice("exclude-storageclass"),
-		olderThan:             cli.String("older-than"),
-		newerThan:             cli.String("newer-than"),
-		storageClass:          cli.String("storage-class"),
+		disableMultipart:      cmd.Bool("disable-multipart"),
+		skipErrors:            cmd.Bool("skip-errors"),
+		excludeOptions:        cmd.StringSlice("exclude"),
+		excludeBuckets:        cmd.StringSlice("exclude-bucket"),
+		excludeStorageClasses: cmd.StringSlice("exclude-storageclass"),
+		olderThan:             cmd.String("older-than"),
+		newerThan:             cmd.String("newer-than"),
+		storageClass:          cmd.String("storage-class"),
 		userMetadata:          userMetadata,
 		encKeyDB:              encKeyDB,
 		activeActive:          isActiveActive,
-		maxWorkers:            cli.Int("max-workers"),
+		maxWorkers:            cmd.Int("max-workers"),
 	}
 
 	// If we are not using active/active and we are not removing
@@ -1047,7 +1047,7 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 	// Create a new mirror job and execute it
 	mj := newMirrorJob(srcURL, dstURL, mopts)
 
-	preserve := cli.Bool("preserve")
+	preserve := cmd.Bool("preserve")
 
 	createDstBuckets := dstClt.GetURL().Type == objectStorage && dstClt.GetURL().Path == string(dstClt.GetURL().Separator)
 	mirrorSrcBuckets := srcClt.GetURL().Type == objectStorage && srcClt.GetURL().Path == string(srcClt.GetURL().Separator)
@@ -1094,9 +1094,9 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 
 				var (
 					withLock bool
-					mode     minio.RetentionMode
+					mode     openstor.RetentionMode
 					validity uint64
-					unit     minio.ValidityUnit
+					unit     openstor.ValidityUnit
 					err      *probe.Error
 				)
 				if preserve && mirrorBucketsToBuckets {
@@ -1121,7 +1121,7 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 				})
 
 				// Bucket only exists in the source, create the same bucket in the destination
-				if err := newDstClt.MakeBucket(ctx, cli.String("region"), false, withLock); err != nil {
+				if err := newDstClt.MakeBucket(ctx, cmd.String("region"), false, withLock); err != nil {
 					errorIf(err, "Unable to create bucket at `%s`.", newTgtURL)
 					continue
 				}
@@ -1135,7 +1135,7 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 						}
 						if err == nil {
 							mj.opts.md5 = true
-							mj.opts.checksum = minio.ChecksumNone
+							mj.opts.checksum = openstor.ChecksumNone
 						}
 					}
 					errorIf(copyBucketPolicies(ctx, newSrcClt, newDstClt, isOverwrite),
@@ -1161,20 +1161,20 @@ func runMirror(ctx context.Context, srcURL, dstURL string, cli *cli.Context, enc
 }
 
 // Main entry point for mirror command.
-func mainMirror(cliCtx *cli.Context) error {
+func mainMirror(ctx context.Context, cmd *cli.Command) error {
 	// Additional command specific theme customization.
 	console.SetColor("Mirror", color.New(color.FgGreen, color.Bold))
 
-	ctx, cancelMirror := context.WithCancel(globalContext)
+	ctx, cancelMirror := context.WithCancel(ctx)
 	defer cancelMirror()
 
-	encKeyDB, err := validateAndCreateEncryptionKeys(cliCtx)
+	encKeyDB, err := validateAndCreateEncryptionKeys(ctx, cmd)
 	fatalIf(err, "Unable to parse encryption keys.")
 
 	// check 'mirror' cli arguments.
-	srcURL, tgtURL := checkMirrorSyntax(ctx, cliCtx, encKeyDB)
+	srcURL, tgtURL := checkMirrorSyntax(ctx, cmd, encKeyDB)
 
-	if prometheusAddress := cliCtx.String("monitoring-address"); prometheusAddress != "" {
+	if prometheusAddress := cmd.String("monitoring-address"); prometheusAddress != "" {
 		http.Handle("/metrics", promhttp.Handler())
 		go func() {
 			if e := http.ListenAndServe(prometheusAddress, nil); e != nil {
@@ -1189,8 +1189,8 @@ func mainMirror(cliCtx *cli.Context) error {
 		case <-ctx.Done():
 			return exitStatus(globalErrorExitStatus)
 		default:
-			errorDetected := runMirror(ctx, srcURL, tgtURL, cliCtx, encKeyDB)
-			if cliCtx.Bool("watch") || cliCtx.Bool("multi-master") || cliCtx.Bool("active-active") {
+			errorDetected := runMirror(ctx, srcURL, tgtURL, cmd, encKeyDB)
+			if cmd.Bool("watch") || cmd.Bool("multi-master") || cmd.Bool("active-active") {
 				mirrorRestarts.Inc()
 				time.Sleep(time.Duration(r.Float64() * float64(2*time.Second)))
 				continue

@@ -18,13 +18,15 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
-var tagSubcommands = []cli.Command{
-	tagListCmd,
-	tagRemoveCmd,
-	tagSetCmd,
+var tagSubcommands = []*cli.Command{
+	&tagListCmd,
+	&tagRemoveCmd,
+	&tagSetCmd,
 }
 
 var tagCmd = cli.Command{
@@ -34,10 +36,15 @@ var tagCmd = cli.Command{
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
 	HideHelpCommand: true,
-	Subcommands:     tagSubcommands,
+	Commands:        tagSubcommands,
 }
 
-func mainTag(ctx *cli.Context) error {
-	commandNotFound(ctx, tagSubcommands)
+func mainTag(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range tagSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 }

@@ -24,16 +24,16 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateListFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "status",
 		Usage: "show rules by status. Valid options are [enabled,disabled]",
 	},
@@ -41,7 +41,7 @@ var replicateListFlags = []cli.Flag{
 
 var replicateListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list server side replication configuration rules",
 	Action:       mainReplicateList,
 	OnUsageError: onUsageError,
@@ -63,9 +63,9 @@ EXAMPLES:
 }
 
 // checkReplicateListSyntax - validate all the passed arguments
-func checkReplicateListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateListSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -124,7 +124,7 @@ func (l replicateListMessage) String() string {
 	return sb.String() + "\n"
 }
 
-func mainReplicateList(cliCtx *cli.Context) error {
+func mainReplicateList(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelReplicateList := context.WithCancel(globalContext)
 	defer cancelReplicateList()
 
@@ -134,16 +134,16 @@ func mainReplicateList(cliCtx *cli.Context) error {
 	console.SetColor("Val", color.New(color.Bold, color.FgCyan))
 	console.SetColor("EpVal", color.New(color.Bold, color.FgYellow))
 
-	checkReplicateListSyntax(cliCtx)
+	checkReplicateListSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
 	fatalIf(err, "Unable to initialize connection.")
 	rCfg, err := client.GetReplication(ctx)
-	fatalIf(err.Trace(args...), "Unable to get replication configuration")
+	fatalIf(err.Trace(args.Slice()...), "Unable to get replication configuration")
 
 	if rCfg.Empty() {
 		fatalIf(probe.NewError(errors.New("replication configuration not set")).Trace(aliasedURL),
@@ -153,11 +153,11 @@ func mainReplicateList(cliCtx *cli.Context) error {
 	// Create a new MinIO Admin Client
 	admClient, cerr := newAdminClient(aliasedURL)
 	fatalIf(cerr, "Unable to initialize admin connection.")
-	_, sourceBucket := url2Alias(args[0])
+	_, sourceBucket := url2Alias(args.Get(0))
 	targets, e := admClient.ListRemoteTargets(globalContext, sourceBucket, "")
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch remote target.")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to fetch remote target.")
 
-	statusFlag := cliCtx.String("status")
+	statusFlag := cmd.String("status")
 	for _, rule := range rCfg.Rules {
 		if statusFlag == "" || strings.EqualFold(statusFlag, string(rule.Status)) {
 			printMsg(replicateListMessage{

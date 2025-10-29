@@ -17,9 +17,13 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminServiceSubcommands = []cli.Command{
+	"github.com/urfave/cli/v3"
+)
+
+var adminServiceSubcommands = []*cli.Command{
 	adminServiceRestartCmd,
 	adminServiceStopCmd,
 	adminServiceUnfreezeCmd,
@@ -27,18 +31,31 @@ var adminServiceSubcommands = []cli.Command{
 }
 
 var adminServiceCmd = cli.Command{
-	Name:            "service",
-	Usage:           "restart or unfreeze a MinIO cluster",
-	Action:          mainAdminService,
+	Name:  "service",
+	Usage: "restart or unfreeze a MinIO cluster",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		// Convert []*cli.Command to []cli.Command
+		var commands []cli.Command
+		for _, c := range adminServiceSubcommands {
+			commands = append(commands, *c)
+		}
+		commandNotFound(ctx, cmd, commands)
+		return nil
+	},
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
 	HideHelpCommand: true,
-	Subcommands:     adminServiceSubcommands,
+	Commands:        adminServiceSubcommands,
 }
 
 // mainAdmin is the handle for "mc admin service" command.
-func mainAdminService(ctx *cli.Context) error {
-	commandNotFound(ctx, adminServiceSubcommands)
+func mainAdminService(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command
+	var commands []cli.Command
+	for _, c := range adminServiceSubcommands {
+		commands = append(commands, *c)
+	}
+	commandNotFound(ctx, cmd, commands)
 	return nil
 	// Sub-commands like "status", "restart" have their own main.
 }

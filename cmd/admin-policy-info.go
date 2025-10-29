@@ -18,23 +18,24 @@
 package cmd
 
 import (
+	"context"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var policyInfoFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "policy-file, f",
 		Usage: "additionally (over-)write policy JSON to given file",
 	},
 }
 
-var adminPolicyInfoCmd = cli.Command{
+var adminPolicyInfoCmd = &cli.Command{
 	Name:         "info",
 	Usage:        "show info on an IAM policy",
 	Action:       mainAdminPolicyInfo,
@@ -63,39 +64,30 @@ EXAMPLES:
 }
 
 // checkAdminPolicyInfoSyntax - validate all the passed arguments
-func checkAdminPolicyInfoSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminPolicyInfoSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 func getPolicyInfo(client *madmin.AdminClient, policyName string) (*madmin.PolicyInfo, error) {
-	pinfo, e := client.InfoCannedPolicyV2(globalContext, policyName)
+	pinfo, e := client.InfoCannedPolicy(globalContext, policyName)
 	if e != nil {
 		return nil, e
-	}
-
-	if pinfo.PolicyName == "" {
-		// Likely server only supports the older version.
-		// nolint:staticcheck
-		pinfo.Policy, e = client.InfoCannedPolicy(globalContext, policyName)
-		if e != nil {
-			return nil, e
-		}
-		pinfo.PolicyName = policyName
 	}
 	return pinfo, nil
 }
 
 // mainAdminPolicyInfo is the handler for "mc admin policy info" command.
-func mainAdminPolicyInfo(ctx *cli.Context) error {
-	checkAdminPolicyInfoSyntax(ctx)
+func mainAdminPolicyInfo(ctx context.Context, cmd *cli.Command) error {
+	checkAdminPolicyInfoSyntax(ctx, cmd)
 
 	console.SetColor("PolicyMessage", color.New(color.FgGreen))
 	console.SetColor("Policy", color.New(color.FgBlue))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	policyName := args.Get(1)
 
@@ -104,19 +96,19 @@ func mainAdminPolicyInfo(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection")
 
 	pinfo, e := getPolicyInfo(client, policyName)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch policy")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to fetch policy")
 
-	policyFile := ctx.String("policy-file")
+	policyFile := cmd.String("policy-file")
 	if policyFile != "" {
 		f, e := os.Create(policyFile)
-		fatalIf(probe.NewError(e).Trace(args...), "Could not open given policy file")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Could not open given policy file")
 
 		_, e = f.Write(pinfo.Policy)
-		fatalIf(probe.NewError(e).Trace(args...), "Could not write to given policy file")
+		fatalIf(probe.NewError(e).Trace(args.Slice()...), "Could not write to given policy file")
 	}
 
 	printMsg(userPolicyMessage{
-		op:         ctx.Command.Name,
+		op:         "info",
 		Policy:     policyName,
 		PolicyInfo: *pinfo,
 	})

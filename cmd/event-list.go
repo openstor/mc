@@ -22,17 +22,17 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var eventListFlags = []cli.Flag{}
 
 var eventListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list bucket notifications",
 	Action:       mainEventList,
 	OnUsageError: onUsageError,
@@ -57,9 +57,9 @@ EXAMPLES:
 }
 
 // checkEventListSyntax - validate all the passed arguments
-func checkEventListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 && len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkEventListSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 && cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -98,7 +98,7 @@ func (u eventListMessage) String() string {
 	return msg
 }
 
-func mainEventList(cliCtx *cli.Context) error {
+func mainEventList(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelEventList := context.WithCancel(globalContext)
 	defer cancelEventList()
 
@@ -106,9 +106,9 @@ func mainEventList(cliCtx *cli.Context) error {
 	console.SetColor("Event", color.New(color.FgCyan, color.Bold))
 	console.SetColor("Filter", color.New(color.Bold))
 
-	checkEventListSyntax(cliCtx)
+	checkEventListSyntax(ctx, cmd)
 
-	args := cliCtx.Args()
+	args := cmd.Args().Slice()
 	path := args[0]
 	arn := ""
 	if len(args) > 1 {

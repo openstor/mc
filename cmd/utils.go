@@ -34,12 +34,12 @@ import (
 	"time"
 
 	"github.com/mattn/go-ieproxy"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio-go/v7"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/openstor-go/v7"
 
 	jwtgo "github.com/golang-jwt/jwt/v4"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
 )
 
 func isErrIgnored(err *probe.Error) (ignored bool) {
@@ -53,7 +53,7 @@ func isErrIgnored(err *probe.Error) (ignored bool) {
 		ignored = true
 	case ObjectAlreadyExistsAsDirectory, BucketDoesNotExist, BucketInvalid:
 		ignored = true
-	case minio.ErrorResponse:
+	case openstor.ErrorResponse:
 		ignored = strings.Contains(e.Error(), "The specified key does not exist")
 	default:
 		ignored = false
@@ -209,17 +209,17 @@ func isNewer(ti time.Time, newerRef string) bool {
 	return objectAge >= time.Duration(newerThan)
 }
 
-// getLookupType returns the minio.BucketLookupType for lookup
+// getLookupType returns the openstor.BucketLookupType for lookup
 // option entered on the command line
-func getLookupType(l string) minio.BucketLookupType {
+func getLookupType(l string) openstor.BucketLookupType {
 	l = strings.ToLower(l)
 	switch l {
 	case "off":
-		return minio.BucketLookupDNS
+		return openstor.BucketLookupDNS
 	case "on":
-		return minio.BucketLookupPath
+		return openstor.BucketLookupPath
 	}
-	return minio.BucketLookupAuto
+	return openstor.BucketLookupAuto
 }
 
 // Return true if target url is a part of a source url such as:

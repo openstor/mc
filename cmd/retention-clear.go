@@ -22,29 +22,29 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var retentionClearFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "clear retention recursively",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "version-id, vid",
 		Usage: "clear retention of a specific object version",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "rewind",
 		Usage: "roll back object(s) to current version at specified time",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "versions",
 		Usage: "clear retention of object(s) and all its versions",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "default",
 		Usage: "set default bucket locking",
 	},
@@ -88,23 +88,23 @@ EXAMPLES:
 `,
 }
 
-func parseClearRetentionArgs(cliCtx *cli.Context) (target, versionID string, timeRef time.Time, withVersions, recursive, bucketMode bool) {
-	args := cliCtx.Args()
+func parseClearRetentionArgs(ctx context.Context, cmd *cli.Command) (target, versionID string, timeRef time.Time, withVersions, recursive, bucketMode bool) {
+	args := cmd.Args()
 
-	if len(args) != 1 {
-		showCommandHelpAndExit(cliCtx, 1)
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	target = args[0]
+	target = args.Get(0)
 	if target == "" {
 		fatalIf(errInvalidArgument().Trace(), "invalid target url '%v'", target)
 	}
 
-	versionID = cliCtx.String("version-id")
-	timeRef = parseRewindFlag(cliCtx.String("rewind"))
-	withVersions = cliCtx.Bool("versions")
-	recursive = cliCtx.Bool("recursive")
-	bucketMode = cliCtx.Bool("default")
+	versionID = cmd.String("version-id")
+	timeRef = parseRewindFlag(cmd.String("rewind"))
+	withVersions = cmd.Bool("versions")
+	recursive = cmd.Bool("recursive")
+	bucketMode = cmd.Bool("default")
 
 	if bucketMode && (versionID != "" || !timeRef.IsZero() || withVersions || recursive) {
 		fatalIf(errDummy(), "--default cannot be specified with any of --version-id, --rewind, --versions or --recursive.")
@@ -115,7 +115,7 @@ func parseClearRetentionArgs(cliCtx *cli.Context) (target, versionID string, tim
 
 // Clear Retention for one object/version or many objects within a given prefix, bypass governance is always enabled
 func clearRetention(ctx context.Context, target, versionID string, timeRef time.Time, withVersions, isRecursive bool) error {
-	return applyRetention(ctx, lockOpClear, target, versionID, timeRef, withVersions, isRecursive, "", 0, minio.Days, true)
+	return applyRetention(ctx, lockOpClear, target, versionID, timeRef, withVersions, isRecursive, "", 0, openstor.Days, true)
 }
 
 func clearBucketLock(urlStr string) error {
@@ -123,14 +123,14 @@ func clearBucketLock(urlStr string) error {
 }
 
 // main for retention clear command.
-func mainRetentionClear(cliCtx *cli.Context) error {
+func mainRetentionClear(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelSetRetention := context.WithCancel(globalContext)
 	defer cancelSetRetention()
 
 	console.SetColor("RetentionSuccess", color.New(color.FgGreen, color.Bold))
 	console.SetColor("RetentionFailure", color.New(color.FgYellow))
 
-	target, versionID, rewind, withVersions, recursive, bucketMode := parseClearRetentionArgs(cliCtx)
+	target, versionID, rewind, withVersions, recursive, bucketMode := parseClearRetentionArgs(ctx, cmd)
 
 	fatalIfBucketLockNotSupported(ctx, target)
 

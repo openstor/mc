@@ -26,16 +26,16 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // iam export specific flags.
 var (
 	iamExportFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "output,o",
 			Usage: "output iam export to a custom file path",
 		},
@@ -68,19 +68,19 @@ EXAMPLES:
 `,
 }
 
-func checkIAMExportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkIAMExportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainClusterIAMExport -  metadata export command
-func mainClusterIAMExport(ctx *cli.Context) error {
+func mainClusterIAMExport(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkIAMExportSyntax(ctx)
+	checkIAMExportSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := filepath.ToSlash(args.Get(0))
 	aliasedURL = filepath.Clean(aliasedURL)
 
@@ -110,8 +110,8 @@ func mainClusterIAMExport(ctx *cli.Context) error {
 	tmpFile.Close()
 
 	downloadPath := fmt.Sprintf("%s-iam-info.%s", aliasedURL, ext)
-	if ctx.String("output") != "" {
-		downloadPath = ctx.String("output")
+	if cmd.String("output") != "" {
+		downloadPath = cmd.String("output")
 	}
 	fi, e := os.Stat(downloadPath)
 	if e == nil && !fi.IsDir() {

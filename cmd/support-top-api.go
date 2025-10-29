@@ -21,25 +21,25 @@ import (
 	"context"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var supportTopAPIFlags = []cli.Flag{
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "name",
 		Usage: "summarize current calls for matching API name",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "path",
 		Usage: "summarize current API calls only on matching path",
 	},
-	cli.StringSliceFlag{
+	&cli.StringSliceFlag{
 		Name:  "node",
 		Usage: "summarize current API calls only on matching servers",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "errors, e",
 		Usage: "summarize current API calls throwing only errors",
 	},
@@ -72,16 +72,16 @@ EXAMPLES:
 }
 
 // checkSupportTopAPISyntax - validate all the passed arguments
-func checkSupportTopAPISyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportTopAPISyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainSupportTopAPI(ctx *cli.Context) error {
-	checkSupportTopAPISyntax(ctx)
+func mainSupportTopAPI(ctx context.Context, cmd *cli.Command) error {
+	checkSupportTopAPISyntax(ctx, cmd)
 
-	aliasedURL := ctx.Args().Get(0)
+	aliasedURL := cmd.Args().Get(0)
 	alias, _ := url2Alias(aliasedURL)
 	validateClusterRegistered(alias, false)
 
@@ -95,10 +95,10 @@ func mainSupportTopAPI(ctx *cli.Context) error {
 	ctxt, cancel := context.WithCancel(globalContext)
 	defer cancel()
 
-	opts, e := tracingOpts(ctx, ctx.StringSlice("call"))
+	opts, e := tracingOpts(ctx, cmd, cmd.StringSlice("call"))
 	fatalIf(probe.NewError(e), "Unable to start tracing")
 
-	mopts := matchingOpts(ctx)
+	mopts := matchingOpts(ctx, cmd)
 
 	// Start listening on all trace activity.
 	traceCh := client.ServiceTrace(ctxt, opts)

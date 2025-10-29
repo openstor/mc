@@ -18,15 +18,16 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var adminAccesskeyInfoCmd = cli.Command{
@@ -138,16 +139,16 @@ type providerInfo interface {
 	String() string
 }
 
-func mainAdminAccesskeyInfo(ctx *cli.Context) error {
-	return commonAccesskeyInfo(ctx)
+func mainAdminAccesskeyInfo(ctx context.Context, cmd *cli.Command) error {
+	return commonAccesskeyInfo(ctx, cmd)
 }
 
-func commonAccesskeyInfo(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func commonAccesskeyInfo(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	accessKeys := args.Tail()
 

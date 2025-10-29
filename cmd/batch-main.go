@@ -17,16 +17,20 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var batchSubcommands = []cli.Command{
-	batchGenerateCmd,
-	batchStartCmd,
-	batchListCmd,
-	batchStatusCmd,
-	batchDescribeCmd,
-	// batchSuspendResumeCmd,
-	batchCancelCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var batchSubcommands = []*cli.Command{
+	&batchGenerateCmd,
+	&batchStartCmd,
+	&batchListCmd,
+	&batchStatusCmd,
+	&batchDescribeCmd,
+	// &batchSuspendResumeCmd,
+	&batchCancelCmd,
 }
 
 var batchCmd = cli.Command{
@@ -35,13 +39,17 @@ var batchCmd = cli.Command{
 	Action:          mainBatch,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     batchSubcommands,
+	Commands:        batchSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainBatch is the handle for "mc batch" command.
-func mainBatch(ctx *cli.Context) error {
-	commandNotFound(ctx, batchSubcommands)
+func mainBatch(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range batchSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 	// Sub-commands like "generate", "list", "info" have their own main.
 }

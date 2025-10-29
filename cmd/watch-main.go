@@ -25,28 +25,28 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/notification"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/notification"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var watchFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "events",
 		Value: "put,delete,get",
 		Usage: "filter specific types of events; defaults to all events by default",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "prefix",
 		Usage: "filter events for a prefix",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "suffix",
 		Usage: "filter events for a suffix",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive",
 		Usage: "recursively watch for events",
 	},
@@ -90,9 +90,9 @@ EXAMPLES:
 }
 
 // checkWatchSyntax - validate all the passed arguments
-func checkWatchSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkWatchSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -131,21 +131,21 @@ func (u watchMessage) String() string {
 	return msg
 }
 
-func mainWatch(cliCtx *cli.Context) error {
+func mainWatch(ctx context.Context, cmd *cli.Command) error {
 	console.SetColor("Time", color.New(color.FgGreen))
 	console.SetColor("Size", color.New(color.FgYellow))
 	console.SetColor("EventType", color.New(color.FgCyan, color.Bold))
 	console.SetColor("ObjectName", color.New(color.Bold))
 
-	checkWatchSyntax(cliCtx)
+	checkWatchSyntax(ctx, cmd)
 
-	args := cliCtx.Args()
-	path := args[0]
+	args := cmd.Args()
+	path := args.Get(0)
 
-	prefix := cliCtx.String("prefix")
-	suffix := cliCtx.String("suffix")
-	events := strings.Split(cliCtx.String("events"), ",")
-	recursive := cliCtx.Bool("recursive")
+	prefix := cmd.String("prefix")
+	suffix := cmd.String("suffix")
+	events := strings.Split(cmd.String("events"), ",")
+	recursive := cmd.Bool("recursive")
 
 	s3Client, pErr := newClient(path)
 	if pErr != nil {

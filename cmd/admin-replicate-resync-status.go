@@ -29,14 +29,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
 	"github.com/olekukonko/tablewriter"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminReplicateResyncStatusCmd = cli.Command{
+var adminReplicateResyncStatusCmd = &cli.Command{
 	Name:         "status",
 	Usage:        "show site replication resync status",
 	Action:       mainAdminReplicationResyncStatus,
@@ -59,11 +59,12 @@ EXAMPLES:
 `,
 }
 
-func mainAdminReplicationResyncStatus(ctx *cli.Context) error {
+func mainAdminReplicationResyncStatus(ctx context.Context, cmd *cli.Command) error {
 	// Check argument count
-	argsNr := len(ctx.Args())
+	args := cmd.Args()
+	argsNr := args.Len()
 	if argsNr != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	console.SetColor("ResyncMessage", color.New(color.FgGreen))
@@ -72,7 +73,7 @@ func mainAdminReplicationResyncStatus(ctx *cli.Context) error {
 	console.SetColor("TDetail", color.New(color.Bold, color.FgCyan))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args = cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -96,7 +97,7 @@ func mainAdminReplicationResyncStatus(ctx *cli.Context) error {
 		}
 	}
 	if peer.DeploymentID == "" {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"alias provided is not part of cluster replication.")
 	}
 	ctxt, cancel := context.WithCancel(globalContext)
@@ -123,7 +124,7 @@ func mainAdminReplicationResyncStatus(ctx *cli.Context) error {
 			}
 		})
 		if e != nil && !errors.Is(e, context.Canceled) {
-			fatalIf(probe.NewError(e).Trace(ctx.Args()...), "Unable to get resync status")
+			fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to get resync status")
 		}
 	}()
 

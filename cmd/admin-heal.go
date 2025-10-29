@@ -19,6 +19,7 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"math"
 	"net/url"
@@ -30,11 +31,11 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -43,66 +44,66 @@ const (
 )
 
 var adminHealFlags = []cli.Flag{
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:   "pool",
 		Usage:  "heal only the given pool",
 		Hidden: true,
 	},
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:   "set",
 		Usage:  "heal only the given set",
 		Hidden: true,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "scan",
 		Usage:  "select the healing scan mode (normal/deep)",
 		Value:  scanNormalMode,
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "recursive, r",
 		Usage:  "heal recursively",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "dry-run, n",
 		Usage:  "only inspect data, but do not mutate",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "force-start, f",
 		Usage:  "force start a new heal sequence",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "force-stop, s",
 		Usage:  "force stop a running heal sequence",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "force",
 		Usage: "avoid showing a warning prompt",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "remove",
 		Usage:  "remove dangling objects in heal sequence",
 		Hidden: true,
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "storage-class",
 		Usage:  "show server/drives failure tolerance with the given storage class",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "rewrite",
 		Usage:  "rewrite objects from older to newer format",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "verbose, v",
 		Usage: "show verbose information",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all-drives, a",
 		Usage: "select all drives for verbose printing",
 	},
@@ -131,16 +132,17 @@ EXAMPLES:
 `,
 }
 
-func checkAdminHealSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminHealSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	// Check for scan argument
-	scanArg := ctx.String("scan")
+	scanArg := cmd.String("scan")
 	scanArg = strings.ToLower(scanArg)
 	if scanArg != scanNormalMode && scanArg != scanDeepMode {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -648,12 +650,12 @@ func transformScanArg(scanArg string) madmin.HealScanMode {
 }
 
 // mainAdminHeal - the entry function of heal command
-func mainAdminHeal(ctx *cli.Context) error {
+func mainAdminHeal(ctx context.Context, cmd *cli.Command) error {
 	// Check for command syntax
-	checkAdminHealSyntax(ctx)
+	checkAdminHealSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	console.SetColor("Heal", color.New(color.FgGreen, color.Bold))
@@ -688,15 +690,15 @@ func mainAdminHeal(ctx *cli.Context) error {
 
 	// Return the background heal status when the user
 	// doesn't pass a bucket or --recursive flag.
-	if bucket == "" && !ctx.Bool("recursive") {
+	if bucket == "" && !cmd.Bool("recursive") {
 		bgHealStatus, e := adminClnt.BackgroundHealStatus(globalContext)
 		fatalIf(probe.NewError(e), "Unable to get background heal status.")
-		if ctx.Bool("verbose") {
+		if cmd.Bool("verbose") {
 			printMsg(verboseBackgroundHealStatusMessage{
 				Status:         "success",
 				HealInfo:       bgHealStatus,
-				allDrives:      ctx.Bool("all-drives"),
-				ToleranceForSC: strings.ToUpper(ctx.String("storage-class")),
+				allDrives:      cmd.Bool("all-drives"),
+				ToleranceForSC: strings.ToUpper(cmd.String("storage-class")),
 			})
 		} else {
 			printMsg(shortBackgroundHealStatusMessage{
@@ -708,15 +710,15 @@ func mainAdminHeal(ctx *cli.Context) error {
 	}
 
 	opts := madmin.HealOpts{
-		ScanMode:  transformScanArg(ctx.String("scan")),
-		Remove:    ctx.Bool("remove"),
-		Recursive: ctx.Bool("recursive"),
-		DryRun:    ctx.Bool("dry-run"),
-		Recreate:  ctx.Bool("rewrite"),
+		ScanMode:  transformScanArg(cmd.String("scan")),
+		Remove:    cmd.Bool("remove"),
+		Recursive: cmd.Bool("recursive"),
+		DryRun:    cmd.Bool("dry-run"),
+		Recreate:  cmd.Bool("rewrite"),
 	}
 
-	if ctx.IsSet("pool") {
-		p := ctx.Int("pool")
+	if cmd.IsSet("pool") {
+		p := cmd.Int("pool")
 		if p < 1 {
 			fatalIf(errInvalidArgument(), "--pool takes a non zero positive number.")
 		}
@@ -724,8 +726,8 @@ func mainAdminHeal(ctx *cli.Context) error {
 		opts.Pool = &p
 	}
 
-	if ctx.IsSet("set") {
-		s := ctx.Int("set")
+	if cmd.IsSet("set") {
+		s := cmd.Int("set")
 		if s < 1 {
 			fatalIf(errInvalidArgument(), "--set takes a non zero positive number.")
 		}
@@ -733,8 +735,8 @@ func mainAdminHeal(ctx *cli.Context) error {
 		opts.Set = &s
 	}
 
-	forceStart := ctx.Bool("force-start")
-	forceStop := ctx.Bool("force-stop")
+	forceStart := cmd.Bool("force-start")
+	forceStop := cmd.Bool("force-stop")
 	if forceStop {
 		_, _, e := adminClnt.Heal(globalContext, bucket, prefix, opts, "", forceStart, forceStop)
 		fatalIf(probe.NewError(e), "Unable to stop healing.")
@@ -742,7 +744,7 @@ func mainAdminHeal(ctx *cli.Context) error {
 		return nil
 	}
 
-	if opts.Recursive && opts.Pool == nil && opts.Set == nil && isTerminal() && !ctx.Bool("force") {
+	if opts.Recursive && opts.Pool == nil && opts.Set == nil && isTerminal() && !cmd.Bool("force") {
 		fmt.Printf("You are about to scan and heal the whole namespace in all pools and sets, please confirm [y/N]: ")
 		answer, e := bufio.NewReader(os.Stdin).ReadString('\n')
 		fatalIf(probe.NewError(e), "Unable to parse user input.")

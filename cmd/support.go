@@ -18,15 +18,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/set"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -35,27 +36,27 @@ const (
 )
 
 var supportGlobalFlags = append(globalFlags,
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "dev",
 		Usage:  "Development mode",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "airgap",
 		Usage: "use in environments without network access to SUBNET (e.g. airgapped, firewalled, etc.)",
 	},
 )
 
-var supportSubcommands = []cli.Command{
-	supportRegisterCmd,
-	supportCallhomeCmd,
-	supportDiagCmd,
-	supportPerfCmd,
-	supportInspectCmd,
-	supportProfileCmd,
-	supportTopCmd,
-	supportProxyCmd,
-	supportUploadCmd,
+var supportSubcommands = []*cli.Command{
+	&supportRegisterCmd,
+	&supportCallhomeCmd,
+	&supportDiagCmd,
+	&supportPerfCmd,
+	&supportInspectCmd,
+	&supportProfileCmd,
+	&supportTopCmd,
+	&supportProxyCmd,
+	&supportUploadCmd,
 }
 
 var supportCmd = cli.Command{
@@ -64,7 +65,7 @@ var supportCmd = cli.Command{
 	Action:          mainSupport,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     supportSubcommands,
+	Commands:        supportSubcommands,
 	HideHelpCommand: true,
 }
 
@@ -80,13 +81,13 @@ func validateToggleCmdArg(arg string) error {
 	return nil
 }
 
-func checkToggleCmdSyntax(ctx *cli.Context) (string, string) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkToggleCmdSyntax(ctx context.Context, cmd *cli.Command) (string, string) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
-	arg := ctx.Args().Get(0)
-	aliasedURL := ctx.Args().Get(1)
+	arg := cmd.Args().Get(0)
+	aliasedURL := cmd.Args().Get(1)
 	fatalIf(probe.NewError(validateToggleCmdArg(arg)), "Invalid arguments.")
 
 	alias, _ := url2Alias(aliasedURL)
@@ -146,6 +147,7 @@ func isFeatureEnabled(alias, subSys, target string) bool {
 	}
 
 	scfgs, e := getMinIOSubSysConfig(client, subSys)
+	fatalIf(probe.NewError(e), "Unable to list access keys.")
 	if e != nil {
 		// Ignore error if the given target doesn't exist
 		// e.g. logger_webhook:subnet doesn't exist when
@@ -181,8 +183,13 @@ func toJSON(obj interface{}) string {
 }
 
 // mainSupport is the handle for "mc support" command.
-func mainSupport(ctx *cli.Context) error {
-	commandNotFound(ctx, supportSubcommands)
+func mainSupport(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range supportSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "register", "callhome", "diagnostics" have their own main.
 }

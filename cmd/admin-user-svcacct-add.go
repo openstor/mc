@@ -19,6 +19,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -28,47 +29,47 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
-	"github.com/minio/pkg/v3/policy"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/openstor/pkg/v3/policy"
+	"github.com/urfave/cli/v3"
 )
 
 var adminUserSvcAcctAddFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "access-key",
 		Usage: "set an access key for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "secret-key",
 		Usage: "set a secret key for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "policy",
 		Usage: "path to a JSON policy file",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "name",
 		Usage: "friendly name for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "description",
 		Usage: "description for the service account",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "comment",
 		Hidden: true,
 		Usage:  "description for the service account (DEPRECATED: use --description instead)",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "expiry",
 		Usage: "time of expiration for the service account",
 	},
 }
 
-var adminUserSvcAcctAddCmd = cli.Command{
+var adminUserSvcAcctAddCmd = &cli.Command{
 	Name:         "add",
 	Usage:        "add a new service account",
 	Action:       mainAdminUserSvcAcctAdd,
@@ -106,9 +107,9 @@ EXAMPLES:
 }
 
 // checkAdminUserSvcAcctAddSyntax - validate all the passed arguments
-func checkAdminUserSvcAcctAddSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAdminUserSvcAcctAddSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
@@ -270,25 +271,25 @@ func (u acctMessage) JSON() string {
 }
 
 // mainAdminUserSvcAcctAdd is the handle for "mc admin user svcacct add" command.
-func mainAdminUserSvcAcctAdd(ctx *cli.Context) error {
-	checkAdminUserSvcAcctAddSyntax(ctx)
+func mainAdminUserSvcAcctAdd(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserSvcAcctAddSyntax(ctx, cmd)
 
 	console.SetColor("AccMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	user := args.Get(1)
 
-	accessKey := ctx.String("access-key")
-	secretKey := ctx.String("secret-key")
-	policyPath := ctx.String("policy")
-	name := ctx.String("name")
-	description := ctx.String("description")
+	accessKey := cmd.String("access-key")
+	secretKey := cmd.String("secret-key")
+	policyPath := cmd.String("policy")
+	name := cmd.String("name")
+	description := cmd.String("description")
 	if description == "" {
-		description = ctx.String("comment")
+		description = cmd.String("comment")
 	}
-	expiry := ctx.String("expiry")
+	expiry := cmd.String("expiry")
 
 	// generate access key and secret key
 	if len(accessKey) <= 0 || len(secretKey) <= 0 {
@@ -351,7 +352,7 @@ func mainAdminUserSvcAcctAdd(ctx *cli.Context) error {
 	}
 
 	creds, e := client.AddServiceAccount(globalContext, opts)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to add a new service account.")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to add a new service account.")
 
 	printMsg(acctMessage{
 		op:            svcAccOpAdd,

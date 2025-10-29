@@ -17,9 +17,13 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminUserSvcAcctSubcommands = []cli.Command{
+	"github.com/urfave/cli/v3"
+)
+
+var adminUserSvcAcctSubcommands = []*cli.Command{
 	adminUserSvcAcctAddCmd,
 	adminUserSvcAcctListCmd,
 	adminUserSvcAcctRemoveCmd,
@@ -29,18 +33,31 @@ var adminUserSvcAcctSubcommands = []cli.Command{
 	adminUserSvcAcctDisableCmd,
 }
 
-var adminUserSvcAcctCmd = cli.Command{
-	Name:            "svcacct",
-	Usage:           "manage service accounts",
-	Action:          mainAdminUserSvcAcct,
+var adminUserSvcAcctCmd = &cli.Command{
+	Name:  "svcacct",
+	Usage: "manage service accounts",
+	Action: func(ctx context.Context, cmd *cli.Command) error {
+		// Convert []*cli.Command to []cli.Command
+		var commands []cli.Command
+		for _, c := range adminUserSvcAcctSubcommands {
+			commands = append(commands, *c)
+		}
+		commandNotFound(ctx, cmd, commands)
+		return nil
+	},
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminUserSvcAcctSubcommands,
+	Commands:        adminUserSvcAcctSubcommands,
 	HideHelpCommand: true,
 }
 
 // mainAdminUserSvcAcct is the handle for "mc admin user svcacct" command.
-func mainAdminUserSvcAcct(ctx *cli.Context) error {
-	commandNotFound(ctx, adminUserSvcAcctSubcommands)
+func mainAdminUserSvcAcct(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command
+	var commands []cli.Command
+	for _, c := range adminUserSvcAcctSubcommands {
+		commands = append(commands, *c)
+	}
+	commandNotFound(ctx, cmd, commands)
 	return nil
 }

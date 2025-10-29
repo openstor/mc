@@ -18,6 +18,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto"
 	"crypto/tls"
 	"encoding/hex"
@@ -38,11 +39,11 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-isatty"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/env"
-	"github.com/minio/selfupdate"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/env"
+	"github.com/openstor/selfupdate"
+	"github.com/urfave/cli/v3"
 )
 
 // Check for new software updates.
@@ -52,7 +53,7 @@ var updateCmd = cli.Command{
 	Action:       mainUpdate,
 	OnUsageError: onUsageError,
 	Flags: []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "json",
 			Usage: "enable JSON lines formatted output",
 		},
@@ -194,7 +195,7 @@ func IsSourceBuild() bool {
 //	mc (<OS>; <ARCH>[; dcos][; kubernetes][; docker][; source]) mc/<VERSION> mc/<RELEASE-TAG> mc/<COMMIT-ID>
 //
 // Any change here should be discussed by opening an issue at
-// https://github.com/minio/mc/issues.
+// https://github.com/openstor/mc/issues.
 func getUserAgent() string {
 	userAgentParts := []string{}
 	// Helper function to concisely append a pair of strings to a
@@ -511,15 +512,15 @@ func (s updateMessage) JSON() string {
 	return string(updateJSONBytes)
 }
 
-func mainUpdate(ctx *cli.Context) {
-	if len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, -1)
+func mainUpdate(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, -1)
 	}
 
-	globalQuiet = ctx.Bool("quiet") || ctx.GlobalBool("quiet")
-	globalJSON = ctx.Bool("json") || ctx.GlobalBool("json")
+	globalQuiet = cmd.Bool("quiet") || cmd.Bool("quiet")
+	globalJSON = cmd.Bool("json") || cmd.Bool("json")
 
-	customReleaseURL := ctx.Args().Get(0)
+	customReleaseURL := cmd.Args().Get(0)
 
 	updateMsg, sha256Hex, _, latestReleaseTime, releaseTag, err := getUpdateInfo(customReleaseURL, 10*time.Second)
 	if err != nil {
@@ -554,4 +555,5 @@ func mainUpdate(ctx *cli.Context) {
 		printMsg(updateMessage{Status: "success", Message: updateStatusMsg})
 		os.Exit(1)
 	}
+	return nil
 }

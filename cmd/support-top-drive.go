@@ -22,13 +22,13 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var supportTopDriveFlags = []cli.Flag{
-	cli.IntFlag{
+	&cli.IntFlag{
 		Name:  "count, c",
 		Usage: "show up to N drives",
 		Value: 10,
@@ -38,7 +38,6 @@ var supportTopDriveFlags = []cli.Flag{
 var supportTopDriveCmd = cli.Command{
 	Name:            "drive",
 	Aliases:         []string{"disk"},
-	HiddenAliases:   true,
 	Usage:           "show real-time drive metrics",
 	Action:          mainSupportTopDrive,
 	OnUsageError:    onUsageError,
@@ -61,16 +60,16 @@ EXAMPLES:
 }
 
 // checkSupportTopDriveSyntax - validate all the passed arguments
-func checkSupportTopDriveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkSupportTopDriveSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() == 0 || cmd.Args().Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainSupportTopDrive(ctx *cli.Context) error {
-	checkSupportTopDriveSyntax(ctx)
+func mainSupportTopDrive(ctx context.Context, cmd *cli.Command) error {
+	checkSupportTopDriveSyntax(ctx, cmd)
 
-	aliasedURL := ctx.Args().Get(0)
+	aliasedURL := cmd.Args().Get(0)
 	alias, _ := url2Alias(aliasedURL)
 	validateClusterRegistered(alias, false)
 
@@ -97,16 +96,16 @@ func mainSupportTopDrive(ctx *cli.Context) error {
 		Type:     madmin.MetricsDisk,
 		Interval: time.Second,
 		ByDisk:   true,
-		N:        ctx.Int("count"),
+		N:        cmd.Int("count"),
 	}
 
-	p := tea.NewProgram(initTopDriveUI(disks, ctx.Int("count")))
+	p := tea.NewProgram(initTopDriveUI(disks, cmd.Int("count")))
 	go func() {
 		out := func(m madmin.RealtimeMetrics) {
 			for name, metric := range m.ByDisk {
 				p.Send(topDriveResult{
 					diskName: name,
-					stats:    metric.IOStats,
+					stats:    metric.IOStatsMinute,
 				})
 			}
 		}

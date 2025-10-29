@@ -18,9 +18,11 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -28,17 +30,17 @@ const (
 )
 
 var adminAttachPolicyFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "user, u",
 		Usage: "attach policy to user",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "group, g",
 		Usage: "attach policy to group",
 	},
 }
 
-var adminPolicyAttachCmd = cli.Command{
+var adminPolicyAttachCmd = &cli.Command{
 	Name:         "attach",
 	Usage:        "attach an IAM policy to a user or group",
 	Action:       mainAdminPolicyAttach,
@@ -68,22 +70,22 @@ EXAMPLES:
 }
 
 // mainAdminPolicyAttach is the handler for "mc admin policy attach" command.
-func mainAdminPolicyAttach(ctx *cli.Context) error {
-	return userAttachOrDetachPolicy(ctx, true)
+func mainAdminPolicyAttach(ctx context.Context, cmd *cli.Command) error {
+	return userAttachOrDetachPolicy(ctx, cmd, true)
 }
 
-func userAttachOrDetachPolicy(ctx *cli.Context, attach bool) error {
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func userAttachOrDetachPolicy(ctx context.Context, cmd *cli.Command, attach bool) error {
+	args := cmd.Args()
+	if args.Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	user := ctx.String("user")
-	group := ctx.String("group")
+	user := cmd.String("user")
+	group := cmd.String("group")
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
 	aliasedURL := args.Get(0)
 
-	policies := args[1:]
+	policies := args.Slice()[1:]
 	req := madmin.PolicyAssociationReq{
 		User:     user,
 		Group:    group,

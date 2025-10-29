@@ -4453,8 +4453,8 @@ https://github.com/minio/crc64nvme
 
 ================================================================
 
-github.com/minio/madmin-go/v3
-https://github.com/minio/madmin-go/v3
+github.com/openstor/madmin-go/v4
+https://github.com/openstor/madmin-go/v4
 ----------------------------------------------------------------
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
@@ -5328,8 +5328,8 @@ https://github.com/minio/md5-simd
 
 ================================================================
 
-github.com/minio/minio-go/v7
-https://github.com/minio/minio-go/v7
+github.com/openstor/openstor-go/v7
+https://github.com/openstor/openstor-go/v7
 ----------------------------------------------------------------
 
                                  Apache License
@@ -5569,8 +5569,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================
 
-github.com/minio/pkg/v3
-https://github.com/minio/pkg/v3
+github.com/openstor/pkg/v3
+https://github.com/openstor/pkg/v3
 ----------------------------------------------------------------
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
@@ -6236,8 +6236,8 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 
 ================================================================
 
-github.com/minio/selfupdate
-https://github.com/minio/selfupdate
+github.com/openstor/selfupdate
+https://github.com/openstor/selfupdate
 ----------------------------------------------------------------
 
                                  Apache License

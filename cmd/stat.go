@@ -28,33 +28,33 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/lifecycle"
-	"github.com/minio/minio-go/v7/pkg/notification"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/openstor/openstor-go/v7/pkg/lifecycle"
+	"github.com/openstor/openstor-go/v7/pkg/notification"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
 )
 
 // contentMessage container for content message structure.
 type statMessage struct {
-	Status            string             `json:"status"`
-	Key               string             `json:"name"`
-	Date              time.Time          `json:"lastModified"`
-	Size              int64              `json:"size"`
-	ETag              string             `json:"etag"`
-	Type              string             `json:"type,omitempty"`
-	Expires           *time.Time         `json:"expires,omitempty"`
-	Expiration        *time.Time         `json:"expiration,omitempty"`
-	ExpirationRuleID  string             `json:"expirationRuleID,omitempty"`
-	ReplicationStatus string             `json:"replicationStatus,omitempty"`
-	Metadata          map[string]string  `json:"metadata,omitempty"`
-	VersionID         string             `json:"versionID,omitempty"`
-	DeleteMarker      bool               `json:"deleteMarker,omitempty"`
-	Restore           *minio.RestoreInfo `json:"restore,omitempty"`
-	Checksum          map[string]string  `json:"checksum,omitempty"`
+	Status            string                `json:"status"`
+	Key               string                `json:"name"`
+	Date              time.Time             `json:"lastModified"`
+	Size              int64                 `json:"size"`
+	ETag              string                `json:"etag"`
+	Type              string                `json:"type,omitempty"`
+	Expires           *time.Time            `json:"expires,omitempty"`
+	Expiration        *time.Time            `json:"expiration,omitempty"`
+	ExpirationRuleID  string                `json:"expirationRuleID,omitempty"`
+	ReplicationStatus string                `json:"replicationStatus,omitempty"`
+	Metadata          map[string]string     `json:"metadata,omitempty"`
+	VersionID         string                `json:"versionID,omitempty"`
+	DeleteMarker      bool                  `json:"deleteMarker,omitempty"`
+	Restore           *openstor.RestoreInfo `json:"restore,omitempty"`
+	Checksum          map[string]string     `json:"checksum,omitempty"`
 }
 
 func (stat statMessage) String() (msg string) {
@@ -384,9 +384,9 @@ type BucketInfo struct {
 		KeyID     string `json:"keyId,omitempty"`
 	} `json:"Encryption,omitempty"`
 	Locking struct {
-		Enabled  string              `json:"enabled"`
-		Mode     minio.RetentionMode `json:"mode"`
-		Validity string              `json:"validity"`
+		Enabled  string                 `json:"enabled"`
+		Mode     openstor.RetentionMode `json:"mode"`
+		Validity string                 `json:"validity"`
 	} `json:"ObjectLock,omitempty"`
 	Replication struct {
 		Enabled bool               `json:"enabled"`

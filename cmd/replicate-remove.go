@@ -21,23 +21,23 @@ import (
 	"context"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateRemoveFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "id",
 		Usage: "id for the rule, should be a unique value",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "force",
 		Usage: "force remove all the replication configuration rules on the bucket",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "all",
 		Usage: "remove all replication configuration rules of the bucket, force flag enforced",
 	},
@@ -45,7 +45,7 @@ var replicateRemoveFlags = []cli.Flag{
 
 var replicateRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove a server side replication configuration rule",
 	Action:       mainReplicateRemove,
 	OnUsageError: onUsageError,
@@ -70,18 +70,18 @@ EXAMPLES:
 }
 
 // checkReplicateRemoveSyntax - validate all the passed arguments
-func checkReplicateRemoveSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateRemoveSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
-	rmAll := ctx.Bool("all")
-	rmForce := ctx.Bool("force")
-	rID := ctx.String("id")
+	rmAll := cmd.Bool("all")
+	rmForce := cmd.Bool("force")
+	rID := cmd.String("id")
 
 	rmChk := (rmAll && rmForce) || (!rmAll && !rmForce)
 	if !rmChk {
 		fatalIf(errInvalidArgument(),
-			"It is mandatory to specify --all and --force flag together for mc "+ctx.Command.FullName()+".")
+			"It is mandatory to specify --all and --force flag together for mc replicate remove.")
 	}
 	if rmAll && rmForce {
 		return
@@ -113,30 +113,30 @@ func (l replicateRemoveMessage) String() string {
 	return console.Colorize("replicateRemoveMessage", "Replication configuration removed from "+l.URL+" successfully.")
 }
 
-func mainReplicateRemove(cliCtx *cli.Context) error {
+func mainReplicateRemove(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelReplicateRemove := context.WithCancel(globalContext)
 	defer cancelReplicateRemove()
 
 	console.SetColor("replicateRemoveMessage", color.New(color.FgGreen))
 
-	checkReplicateRemoveSyntax(cliCtx)
+	checkReplicateRemoveSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
 	fatalIf(err, "Unable to initialize connection.")
 	rcfg, err := client.GetReplication(ctx)
-	fatalIf(err.Trace(args...), "Unable to get replication configuration")
+	fatalIf(err.Trace(args.Slice()...), "Unable to get replication configuration")
 
-	rmAll := cliCtx.Bool("all")
-	rmForce := cliCtx.Bool("force")
-	ruleID := cliCtx.String("id")
+	rmAll := cmd.Bool("all")
+	rmForce := cmd.Bool("force")
+	ruleID := cmd.String("id")
 
 	if rcfg.Empty() && !rmAll {
 		printMsg(replicateRemoveMessage{
-			Op:     cliCtx.Command.Name,
+			Op:     "remove",
 			Status: "success",
 			URL:    aliasedURL,
 		})
@@ -158,12 +158,12 @@ func mainReplicateRemove(cliCtx *cli.Context) error {
 		fatalIf(client.SetReplication(ctx, &rcfg, opts), "Could not remove replication rule")
 		admclient, cerr := newAdminClient(aliasedURL)
 		fatalIf(cerr.Trace(aliasedURL), "Unable to initialize admin connection.")
-		_, sourceBucket := url2Alias(args[0])
-		fatalIf(probe.NewError(admclient.RemoveRemoteTarget(globalContext, sourceBucket, removeArn)).Trace(args...), "Unable to remove remote target")
+		_, sourceBucket := url2Alias(args.Get(0))
+		fatalIf(probe.NewError(admclient.RemoveRemoteTarget(globalContext, sourceBucket, removeArn)).Trace(args.Slice()...), "Unable to remove remote target")
 
 	}
 	printMsg(replicateRemoveMessage{
-		Op:     cliCtx.Command.Name,
+		Op:     "remove",
 		Status: "success",
 		URL:    aliasedURL,
 		ID:     ruleID,

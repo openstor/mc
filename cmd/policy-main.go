@@ -18,12 +18,14 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/pkg/v3/console"
+	"context"
+
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var policyFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "recursive, r",
 		Usage: "list recursively",
 	},
@@ -42,7 +44,7 @@ var policyCmd = cli.Command{
 `,
 }
 
-func mainPolicy(_ *cli.Context) error {
+func mainPolicy(ctx context.Context, cmd *cli.Command) error {
 	console.Infoln("Please use 'mc anonymous'")
 	return nil
 }

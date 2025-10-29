@@ -18,14 +18,16 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminUserSvcAcctDisableCmd = cli.Command{
+var adminUserSvcAcctDisableCmd = &cli.Command{
 	Name:         "disable",
 	Usage:        "disable a service account",
 	Action:       mainAdminUserSvcAcctDisable,
@@ -48,20 +50,21 @@ EXAMPLES:
 }
 
 // checkAdminUserSvcAcctDisableSyntax - validate all the passed arguments
-func checkAdminUserSvcAcctDisableSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 2 {
-		showCommandHelpAndExit(ctx, 1)
+func checkAdminUserSvcAcctDisableSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 }
 
 // mainAdminUserSvcAcctDisable is the handle for "mc admin user svcacct disable" command.
-func mainAdminUserSvcAcctDisable(ctx *cli.Context) error {
-	checkAdminUserSvcAcctDisableSyntax(ctx)
+func mainAdminUserSvcAcctDisable(ctx context.Context, cmd *cli.Command) error {
+	checkAdminUserSvcAcctDisableSyntax(ctx, cmd)
 
 	console.SetColor("AccMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	svcAccount := args.Get(1)
 
@@ -74,7 +77,7 @@ func mainAdminUserSvcAcctDisable(ctx *cli.Context) error {
 	}
 
 	e := client.UpdateServiceAccount(globalContext, svcAccount, opts)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to disable the specified service account")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to disable the specified service account")
 
 	printMsg(acctMessage{
 		op:        svcAccOpDisable,

@@ -25,8 +25,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/openstor/openstor-go/v7"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 const (
@@ -191,7 +191,7 @@ func (p *ParallelManager) enoughMemForUpload(uploadSize int64) bool {
 	}
 
 	estimateNeededMemoryForUpload := func(size int64) uint64 {
-		partsCount, partSize, _, e := minio.OptimalPartInfo(size, 0)
+		partsCount, partSize, _, e := openstor.OptimalPartInfo(size, 0)
 		if e != nil {
 			panic(e)
 		}

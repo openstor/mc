@@ -18,14 +18,15 @@
 package cmd
 
 import (
+	"context"
 	"path/filepath"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminDecommissionCancelCmd = cli.Command{
@@ -54,18 +55,19 @@ EXAMPLES:
 }
 
 // checkAdminDecommissionCancelSyntax - validate all the passed arguments
-func checkAdminDecommissionCancelSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) > 2 || len(ctx.Args()) == 0 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminDecommissionCancelSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() > 2 || args.Len() == 0 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminDecommissionCancel is the handle for "mc admin decommission cancel" command.
-func mainAdminDecommissionCancel(ctx *cli.Context) error {
-	checkAdminDecommissionCancelSyntax(ctx)
+func mainAdminDecommissionCancel(ctx context.Context, cmd *cli.Command) error {
+	checkAdminDecommissionCancelSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	aliasedURL = filepath.Clean(aliasedURL)
 
@@ -74,13 +76,23 @@ func mainAdminDecommissionCancel(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	if pool := args.Get(1); pool != "" {
-		e := client.CancelDecommissionPool(globalContext, pool)
-		fatalIf(probe.NewError(e).Trace(args...), "Unable to cancel decommissioning, please try again")
+		e := client.CancelDecommissionPool(ctx, pool)
+		// Convert cli.Args to []string for Trace
+		argsSlice := make([]string, args.Len())
+		for i := 0; i < args.Len(); i++ {
+			argsSlice[i] = args.Get(i)
+		}
+		fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to cancel decommissioning, please try again")
 		return nil
 	}
 
-	poolStatuses, e := client.ListPoolsStatus(globalContext)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to get status for all pools")
+	poolStatuses, e := client.ListPoolsStatus(ctx)
+	// Convert cli.Args to []string for Trace
+	argsSlice := make([]string, args.Len())
+	for i := 0; i < args.Len(); i++ {
+		argsSlice[i] = args.Get(i)
+	}
+	fatalIf(probe.NewError(e).Trace(argsSlice...), "Unable to get status for all pools")
 
 	var newPoolStatuses []madmin.PoolStatus
 	for _, pool := range poolStatuses {

@@ -18,14 +18,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var idpOpenidAddCmd = cli.Command{
@@ -64,16 +65,16 @@ EXAMPLES:
 `,
 }
 
-func mainIDPOpenIDAdd(ctx *cli.Context) error {
-	return mainIDPOpenIDAddOrUpdate(ctx, false)
+func mainIDPOpenIDAdd(ctx context.Context, cmd *cli.Command) error {
+	return mainIDPOpenIDAddOrUpdate(ctx, cmd, false)
 }
 
-func mainIDPOpenIDAddOrUpdate(ctx *cli.Context, update bool) error {
-	if len(ctx.Args()) < 2 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPOpenIDAddOrUpdate(ctx context.Context, cmd *cli.Command, update bool) error {
+	if cmd.Args().Len() < 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 
 	aliasedURL := args.Get(0)
 
@@ -82,10 +83,10 @@ func mainIDPOpenIDAddOrUpdate(ctx *cli.Context, update bool) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	cfgName := madmin.Default
-	input := args[1:]
+	input := args.Slice()[1:]
 	if !strings.Contains(args.Get(1), "=") {
 		cfgName = args.Get(1)
-		input = args[2:]
+		input = args.Slice()[2:]
 	}
 
 	inputCfg := strings.Join(input, " ")
@@ -130,13 +131,13 @@ EXAMPLES:
 `,
 }
 
-func mainIDPOpenIDUpdate(ctx *cli.Context) error {
-	return mainIDPOpenIDAddOrUpdate(ctx, true)
+func mainIDPOpenIDUpdate(ctx context.Context, cmd *cli.Command) error {
+	return mainIDPOpenIDAddOrUpdate(ctx, cmd, true)
 }
 
 var idpOpenidRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove OpenID IDP server configuration",
 	Action:       mainIDPOpenIDRemove,
 	Before:       setGlobalsFromContext,
@@ -159,22 +160,22 @@ EXAMPLES:
 `,
 }
 
-func mainIDPOpenIDRemove(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPOpenIDRemove(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() < 1 || cmd.Args().Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 
 	var cfgName string
-	if len(args) == 2 {
+	if args.Len() == 2 {
 		cfgName = args.Get(1)
 	}
-	return idpRemove(ctx, true, cfgName)
+	return idpRemove(ctx, cmd, true, cfgName)
 }
 
-func idpRemove(ctx *cli.Context, isOpenID bool, cfgName string) error {
-	args := ctx.Args()
+func idpRemove(ctx context.Context, cmd *cli.Command, isOpenID bool, cfgName string) error {
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -199,7 +200,7 @@ func idpRemove(ctx *cli.Context, isOpenID bool, cfgName string) error {
 
 var idpOpenidListCmd = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list OpenID IDP server configuration(s)",
 	Action:       mainIDPOpenIDList,
 	Before:       setGlobalsFromContext,
@@ -220,16 +221,16 @@ EXAMPLES:
 `,
 }
 
-func mainIDPOpenIDList(ctx *cli.Context) error {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPOpenIDList(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	return idpListCommon(ctx, true)
+	return idpListCommon(ctx, cmd, true)
 }
 
-func idpListCommon(ctx *cli.Context, isOpenID bool) error {
-	args := ctx.Args()
+func idpListCommon(ctx context.Context, cmd *cli.Command, isOpenID bool) error {
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -366,22 +367,22 @@ EXAMPLES:
 `,
 }
 
-func mainIDPOpenIDInfo(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPOpenIDInfo(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() < 1 || cmd.Args().Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	var cfgName string
-	if len(args) == 2 {
+	if args.Len() == 2 {
 		cfgName = args.Get(1)
 	}
 
-	return idpInfo(ctx, true, cfgName)
+	return idpInfo(ctx, cmd, true, cfgName)
 }
 
-func idpInfo(ctx *cli.Context, isOpenID bool, cfgName string) error {
-	args := ctx.Args()
+func idpInfo(ctx context.Context, cmd *cli.Command, isOpenID bool, cfgName string) error {
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -494,19 +495,24 @@ EXAMPLES:
 `,
 }
 
-func mainIDPOpenIDEnable(ctx *cli.Context) error {
+func mainIDPOpenIDEnable(ctx context.Context, cmd *cli.Command) error {
 	isOpenID, enable := true, true
-	return idpEnableDisable(ctx, isOpenID, enable)
+	return idpEnableDisable(ctx, cmd, isOpenID, enable)
 }
 
-func idpEnableDisable(ctx *cli.Context, isOpenID, enable bool) error {
-	if len(ctx.Args()) < 1 || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1)
+func mainIDPOpenIDDisable(ctx context.Context, cmd *cli.Command) error {
+	isOpenID, enable := true, false
+	return idpEnableDisable(ctx, cmd, isOpenID, enable)
+}
+
+func idpEnableDisable(ctx context.Context, cmd *cli.Command, isOpenID, enable bool) error {
+	if cmd.Args().Len() < 1 || cmd.Args().Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 
-	args := ctx.Args()
+	args := cmd.Args()
 	cfgName := madmin.Default
-	if len(args) == 2 {
+	if args.Len() == 2 {
 		cfgName = args.Get(1)
 	}
 	aliasedURL := args.Get(0)
@@ -558,9 +564,4 @@ EXAMPLES:
   2. Disable OpenID IDP configuration named "dex_test".
      {{.Prompt}} {{.HelpName}} play/ dex_test
 `,
-}
-
-func mainIDPOpenIDDisable(ctx *cli.Context) error {
-	isOpenID, enable := true, false
-	return idpEnableDisable(ctx, isOpenID, enable)
 }

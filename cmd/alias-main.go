@@ -18,10 +18,12 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"context"
+
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 //   Configure an alias in MinIO Client
@@ -37,12 +39,12 @@ import (
 
 var aliasFlags = []cli.Flag{}
 
-var aliasSubcommands = []cli.Command{
-	aliasSetCmd,
-	aliasListCmd,
-	aliasRemoveCmd,
-	aliasImportCmd,
-	aliasExportCmd,
+var aliasSubcommands = []*cli.Command{
+	&aliasSetCmd,
+	&aliasListCmd,
+	&aliasRemoveCmd,
+	&aliasImportCmd,
+	&aliasExportCmd,
 }
 
 var aliasCmd = cli.Command{
@@ -52,12 +54,16 @@ var aliasCmd = cli.Command{
 	Before:          setGlobalsFromContext,
 	HideHelpCommand: true,
 	Flags:           append(aliasFlags, globalFlags...),
-	Subcommands:     aliasSubcommands,
+	Commands:        aliasSubcommands,
 }
 
 // mainAlias is the handle for "mc alias" command. provides sub-commands which write configuration data in json format to config file.
-func mainAlias(ctx *cli.Context) error {
-	commandNotFound(ctx, aliasSubcommands)
+func mainAlias(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range aliasSubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 	// Sub-commands like add, list and remove have their own main.
 }

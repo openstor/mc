@@ -18,60 +18,60 @@
 package cmd
 
 import (
+	"context"
 	"net/url"
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminReplicateUpdateFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "deployment-id",
 		Usage: "deployment id of the site, should be a unique value",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "endpoint",
 		Usage: "endpoint for the site",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "mode",
 		Usage: "change mode of replication for this target, valid values are ['sync', 'async'].",
 		Value: "",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:   "sync",
 		Usage:  "enable synchronous replication for this target, valid values are ['enable', 'disable'].",
 		Value:  "disable",
 		Hidden: true, // deprecated Jul 2023
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "bucket-bandwidth",
 		Usage: "Set default bandwidth limit for bucket in bytes per second (K,B,G,T for metric and Ki,Bi,Gi,Ti for IEC units)",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "disable-ilm-expiry-replication",
 		Usage: "disable ILM expiry rules replication",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "enable-ilm-expiry-replication",
 		Usage: "enable ILM expiry rules replication",
 	},
 }
 
-var adminReplicateUpdateCmd = cli.Command{
-	Name:          "update",
-	Aliases:       []string{"edit"},
-	HiddenAliases: true,
-	Usage:         "modify endpoint of site participating in site replication",
-	Action:        mainAdminReplicateUpdate,
-	OnUsageError:  onUsageError,
-	Before:        setGlobalsFromContext,
-	Flags:         append(globalFlags, adminReplicateUpdateFlags...),
+var adminReplicateUpdateCmd = &cli.Command{
+	Name:         "update",
+	Aliases:      []string{"edit"},
+	Usage:        "modify endpoint of site participating in site replication",
+	Action:       mainAdminReplicateUpdate,
+	OnUsageError: onUsageError,
+	Before:       setGlobalsFromContext,
+	Flags:        append(globalFlags, adminReplicateUpdateFlags...),
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -115,71 +115,72 @@ func (m updateSuccessMessage) String() string {
 	return console.Colorize("UserMessage", strings.Join(messages, "\n"))
 }
 
-func checkAdminReplicateUpdateSyntax(ctx *cli.Context) {
+func checkAdminReplicateUpdateSyntax(ctx context.Context, cmd *cli.Command) {
 	// Check argument count
-	argsNr := len(ctx.Args())
+	args := cmd.Args()
+	argsNr := args.Len()
 	if argsNr < 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 	if argsNr != 1 {
-		fatalIf(errInvalidArgument().Trace(ctx.Args().Tail()...),
+		fatalIf(errInvalidArgument().Trace(args.Tail()...),
 			"Invalid arguments specified for edit command.")
 	}
 }
 
-func mainAdminReplicateUpdate(ctx *cli.Context) error {
-	checkAdminReplicateUpdateSyntax(ctx)
+func mainAdminReplicateUpdate(ctx context.Context, cmd *cli.Command) error {
+	checkAdminReplicateUpdateSyntax(ctx, cmd)
 	console.SetColor("UserMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
 	fatalIf(err, "Unable to initialize admin connection.")
 
-	if !ctx.IsSet("deployment-id") && !ctx.IsSet("disable-ilm-expiry-replication") && !ctx.IsSet("enable-ilm-expiry-replication") {
+	if !cmd.IsSet("deployment-id") && !cmd.IsSet("disable-ilm-expiry-replication") && !cmd.IsSet("enable-ilm-expiry-replication") {
 		fatalIf(errInvalidArgument(), "--deployment-id is a required flag")
 	}
-	if !ctx.IsSet("endpoint") && !ctx.IsSet("mode") && !ctx.IsSet("sync") && !ctx.IsSet("bucket-bandwidth") && !ctx.IsSet("disable-ilm-expiry-replication") && !ctx.IsSet("enable-ilm-expiry-replication") {
+	if !cmd.IsSet("endpoint") && !cmd.IsSet("mode") && !cmd.IsSet("sync") && !cmd.IsSet("bucket-bandwidth") && !cmd.IsSet("disable-ilm-expiry-replication") && !cmd.IsSet("enable-ilm-expiry-replication") {
 		fatalIf(errInvalidArgument(), "--endpoint, --mode, --bucket-bandwidth, --disable-ilm-expiry-replication or --enable-ilm-expiry-replication is a required flag")
 	}
-	if ctx.IsSet("mode") && ctx.IsSet("sync") {
+	if cmd.IsSet("mode") && cmd.IsSet("sync") {
 		fatalIf(errInvalidArgument(), "either --sync or --mode flag should be specified")
 	}
-	if ctx.IsSet("disable-ilm-expiry-replication") && ctx.IsSet("enable-ilm-expiry-replication") {
+	if cmd.IsSet("disable-ilm-expiry-replication") && cmd.IsSet("enable-ilm-expiry-replication") {
 		fatalIf(errInvalidArgument(), "either --disable-ilm-expiry-replication or --enable-ilm-expiry-replication flag should be specified")
 	}
-	if (ctx.IsSet("disable-ilm-expiry-replication") || ctx.IsSet("enable-ilm-expiry-replication")) && ctx.IsSet("deployment-id") {
+	if (cmd.IsSet("disable-ilm-expiry-replication") || cmd.IsSet("enable-ilm-expiry-replication")) && cmd.IsSet("deployment-id") {
 		fatalIf(errInvalidArgument(), "--deployment-id should not be set with --disable-ilm-expiry-replication or --enable-ilm-expiry-replication")
 	}
 
 	var syncState string
-	if ctx.IsSet("sync") { // for backward compatibility - deprecated Jul 2023
-		syncState = strings.ToLower(ctx.String("sync"))
+	if cmd.IsSet("sync") { // for backward compatibility - deprecated Jul 2023
+		syncState = strings.ToLower(cmd.String("sync"))
 		switch syncState {
 		case "enable", "disable":
 		default:
-			fatalIf(errInvalidArgument().Trace(args...), "--sync can be either [enable|disable]")
+			fatalIf(errInvalidArgument().Trace(args.Slice()...), "--sync can be either [enable|disable]")
 		}
 	}
 
-	if ctx.IsSet("mode") {
-		mode := strings.ToLower(ctx.String("mode"))
+	if cmd.IsSet("mode") {
+		mode := strings.ToLower(cmd.String("mode"))
 		switch mode {
 		case "sync":
 			syncState = "enable"
 		case "async":
 			syncState = "disable"
 		default:
-			fatalIf(errInvalidArgument().Trace(args...), "--mode can be either [sync|async]")
+			fatalIf(errInvalidArgument().Trace(args.Slice()...), "--mode can be either [sync|async]")
 		}
 	}
 
 	var bwDefaults madmin.BucketBandwidth
-	if ctx.IsSet("bucket-bandwidth") {
-		bandwidthStr := ctx.String("bucket-bandwidth")
+	if cmd.IsSet("bucket-bandwidth") {
+		bandwidthStr := cmd.String("bucket-bandwidth")
 		bandwidth, e := getBandwidthInBytes(bandwidthStr)
 		fatalIf(probe.NewError(e).Trace(bandwidthStr), "invalid bandwidth value")
 
@@ -187,8 +188,8 @@ func mainAdminReplicateUpdate(ctx *cli.Context) error {
 		bwDefaults.IsSet = true
 	}
 	var ep string
-	if ctx.IsSet("endpoint") {
-		parsedURL := ctx.String("endpoint")
+	if cmd.IsSet("endpoint") {
+		parsedURL := cmd.String("endpoint")
 		u, e := url.Parse(parsedURL)
 		if e != nil {
 			fatalIf(errInvalidArgument().Trace(parsedURL), "Unsupported URL format %v", e)
@@ -196,15 +197,15 @@ func mainAdminReplicateUpdate(ctx *cli.Context) error {
 		ep = u.String()
 	}
 	var opts madmin.SREditOptions
-	opts.DisableILMExpiryReplication = ctx.Bool("disable-ilm-expiry-replication")
-	opts.EnableILMExpiryReplication = ctx.Bool("enable-ilm-expiry-replication")
+	opts.DisableILMExpiryReplication = cmd.Bool("disable-ilm-expiry-replication")
+	opts.EnableILMExpiryReplication = cmd.Bool("enable-ilm-expiry-replication")
 	res, e := client.SiteReplicationEdit(globalContext, madmin.PeerInfo{
-		DeploymentID:     ctx.String("deployment-id"),
+		DeploymentID:     cmd.String("deployment-id"),
 		Endpoint:         ep,
 		SyncState:        madmin.SyncStatus(syncState),
 		DefaultBandwidth: bwDefaults,
 	}, opts)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to edit cluster replication site endpoint")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to edit cluster replication site endpoint")
 
 	printMsg(updateSuccessMessage(res))
 

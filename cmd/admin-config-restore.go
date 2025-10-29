@@ -18,13 +18,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var adminConfigRestoreCmd = cli.Command{
@@ -75,19 +76,20 @@ func (u configRestoreMessage) JSON() string {
 }
 
 // checkAdminConfigRestoreSyntax - validate all the passed arguments
-func checkAdminConfigRestoreSyntax(ctx *cli.Context) {
-	if !ctx.Args().Present() || len(ctx.Args()) > 2 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminConfigRestoreSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if !args.Present() || args.Len() > 2 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
-func mainAdminConfigRestore(ctx *cli.Context) error {
-	checkAdminConfigRestoreSyntax(ctx)
+func mainAdminConfigRestore(ctx context.Context, cmd *cli.Command) error {
+	checkAdminConfigRestoreSyntax(ctx, cmd)
 
 	console.SetColor("ConfigRestoreMessage", color.New(color.FgGreen))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -95,7 +97,7 @@ func mainAdminConfigRestore(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	// Call get config API
-	fatalIf(probe.NewError(client.RestoreConfigHistoryKV(globalContext, args.Get(1))), "Unable to restore server configuration.")
+	fatalIf(probe.NewError(client.RestoreConfigHistoryKV(ctx, args.Get(1))), "Unable to restore server configuration.")
 
 	// Print
 	printMsg(configRestoreMessage{

@@ -18,14 +18,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var licenseUpdateCmd = cli.Command{
@@ -73,11 +74,11 @@ func (li licUpdateMessage) JSON() string {
 	return string(jsonBytes)
 }
 
-func mainLicenseUpdate(ctx *cli.Context) error {
-	args := ctx.Args()
-	argsLen := len(args)
+func mainLicenseUpdate(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	argsLen := args.Len()
 	if argsLen > 2 || argsLen < 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	console.SetColor(licUpdateMsgTag, color.New(color.FgGreen, color.Bold))

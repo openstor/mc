@@ -25,71 +25,71 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 // List of all flags supported by find command.
 var (
 	findFlags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "exec",
 			Usage: "spawn an external process for each matching object (see FORMAT)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "ignore",
 			Usage: "exclude objects matching the wildcard pattern",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "versions",
 			Usage: "include all objects versions",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "name",
 			Usage: "find object names matching wildcard pattern",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "newer-than",
 			Usage: "match all objects newer than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "older-than",
 			Usage: "match all objects older than value in duration string (e.g. 7d10h31s)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "path",
 			Usage: "match directory names matching wildcard pattern",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "print",
 			Usage: "print in custom format to STDOUT (see FORMAT)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "regex",
 			Usage: "match directory and object name with RE2 regex pattern",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "larger",
 			Usage: "match all objects larger than specified size in units (see UNITS)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "smaller",
 			Usage: "match all objects smaller than specified size in units (see UNITS)",
 		},
-		cli.UintFlag{
+		&cli.UintFlag{
 			Name:  "maxdepth",
 			Usage: "limit directory navigation to specified depth",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "watch",
 			Usage: "monitor a specified path for newly created object(s)",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "metadata",
 			Usage: "match metadata with RE2 regex pattern. Specify each with key=regex. MinIO server only.",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "tags",
 			Usage: "match tags with RE2 regex pattern. Specify each with key=regex. MinIO server only.",
 		},
@@ -97,12 +97,13 @@ var (
 )
 
 var findCmd = cli.Command{
-	Name:         "find",
-	Usage:        "search for objects",
-	Action:       mainFind,
-	OnUsageError: onUsageError,
-	Before:       setGlobalsFromContext,
-	Flags:        append(findFlags, globalFlags...),
+	Name:  "find",
+	Usage: "search for objects",
+	Action: func(ctx context.Context, cliCtx *cli.Command) error {
+		return mainFind(cliCtx)
+	},
+	Before: setGlobalsFromContext,
+	Flags:  append(findFlags, globalFlags...),
 	CustomHelpTemplate: `NAME:
   {{.HelpName}} - {{.Usage}}
 
@@ -112,74 +113,75 @@ USAGE:
 FLAGS:
   {{range .VisibleFlags}}{{.}}
   {{end}}
-UNITS
-  --smaller, --larger flags accept human-readable case-insensitive number
-  suffixes such as "k", "m", "g" and "t" referring to the metric units KB,
-  MB, GB and TB respectively. Adding an "i" to these prefixes, uses the IEC
-  units, so that "gi" refers to "gibibyte" or "GiB". A "b" at the end is
-  also accepted. Without suffixes the unit is bytes.
-
-  --older-than, --newer-than flags accept the string for days, hours and minutes 
-  i.e. 1d2h30m states 1 day, 2 hours and 30 minutes.
-
-FORMAT
-  Support string substitutions with special interpretations for following keywords.
-  Keywords supported if target is filesystem or object storage:
-
-     {}        --> Substitutes to full path.
-     {base}    --> Substitutes to basename of path.
-     {dir}     --> Substitutes to dirname of the path.
-     {size}    --> Substitutes to object size of the path.
-     {time}    --> Substitutes to object modified time of the path.
-     {version} --> Substitutes to object version identifier.
-
-  Keywords supported if target is object storage:
-
-     {url} --> Substitutes to a shareable URL of the path.
-
 EXAMPLES:
-  01. Find all "foo.jpg" in all buckets under "s3" account.
-      {{.Prompt}} {{.HelpName}} s3 --name "foo.jpg"
+  1. Find all "go" files in mybucket.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --name "*.go"
 
-  02. Find all objects with ".txt" extension under "s3/mybucket".
-      {{.Prompt}} {{.HelpName}} s3/mybucket --name "*.txt"
+  2. Find all objects in mybucket that were created within the last 7 days.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --created-within 7d
 
-  03. Find only the object names without the directory component under "s3/mybucket".
-      {{.Prompt}} {{.HelpName}} s3/mybucket --name "*" -print {base}
+  3. Find all objects in mybucket that were created more than 7 days ago.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --created-before 7d
 
-  04. Find all images with ".jpg" extension under "s3/photos", prefixed with "album".
-      {{.Prompt}} {{.HelpName}} s3/photos --name "*.jpg" --path "*/album*/*"
+  4. Find all objects in mybucket that are larger than 1MB.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --larger 1MB
 
-  05. Find all images with ".jpg", ".png", and ".gif" extensions, using regex under "s3/photos".
-      {{.Prompt}} {{.HelpName}} s3/photos --regex "(?i)\.(jpg|png|gif)$"
+  5. Find all objects in mybucket that are smaller than 1MB.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --smaller 1MB
 
-  06. Find all images with ".jpg" extension under "s3/bucket" and copy to "play/bucket" *continuously*.
-      {{.Prompt}} {{.HelpName}} s3/bucket --name "*.jpg" --watch --exec "mc cp {} play/bucket"
+  6. Find all objects in mybucket that have a custom metadata field "x-amz-meta-author" with the value "john".
+     {{.Prompt}} {{.HelpName}} s3/mybucket --metadata "x-amz-meta-author=john"
 
-  07. Find and generate public URLs valid for 7 days, for all objects between 64 MB, and 1 GB in size under "s3" account.
-      {{.Prompt}} {{.HelpName}} s3 --larger 64MB --smaller 1GB --print {url}
+  7. Find all objects in mybucket that have a custom metadata field "x-amz-meta-author" with any value.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --metadata "x-amz-meta-author"
 
-  08. Find all objects created in the last week under "s3/bucket".
-      {{.Prompt}} {{.HelpName}} s3/bucket --newer-than 7d
+  8. Find all objects in mybucket that have a custom tag "author" with the value "john".
+     {{.Prompt}} {{.HelpName}} s3/mybucket --tags "author=john"
 
-  09. Find all objects which were created are older than 2 days, 5 hours and 10 minutes and exclude the ones with ".jpg"
-      extension under "s3".
-      {{.Prompt}} {{.HelpName}} s3 --older-than 2d5h10m --ignore "*.jpg"
+  9. Find all objects in mybucket that have a custom tag "author" with any value.
+     {{.Prompt}} {{.HelpName}} s3/mybucket --tags "author"
 
-  10. List all objects up to 3 levels sub-directory deep under "s3/bucket".
-      {{.Prompt}} {{.HelpName}} s3/bucket --maxdepth 3
+  10. Find all objects in mybucket that match the specified query.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --query "select * from s3object where author = 'john'"
 
-  11. Copy all versions of all objects in bucket in the local machine
-      {{.Prompt}} {{.HelpName}} s3/bucket --versions --exec "mc cp --version-id {version} {} /tmp/dir/{}.{version}"
+  11. Find all objects in mybucket and count them.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --count
+
+  12. Find all objects in mybucket and print them in a tree format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --tree
+
+  13. Find all objects in mybucket and print them in a table format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --table
+
+  14. Find all objects in mybucket and print them in a json format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --json
+
+  15. Find all objects in mybucket and print them in a csv format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --csv
+
+  16. Find all objects in mybucket and print them in a yaml format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --yaml
+
+  17. Find all objects in mybucket and print them in a xml format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --xml
+
+  18. Find all objects in mybucket and print them in a html format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --html
+
+  19. Find all objects in mybucket and print them in a markdown format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --markdown
+
+  20. Find all objects in mybucket and print them in a custom format.
+      {{.Prompt}} {{.HelpName}} s3/mybucket --format "{{.Name}} {{.Size}} {{.ModTime}}"
 `,
 }
 
 // checkFindSyntax - validate the passed arguments
-func checkFindSyntax(ctx context.Context, cliCtx *cli.Context, encKeyDB map[string][]prefixSSEPair) {
-	args := cliCtx.Args()
-	if !args.Present() {
+func checkFindSyntax(ctx context.Context, cliCtx *cli.Command, encKeyDB map[string][]prefixSSEPair) {
+	args := cliCtx.Args().Slice()
+	if len(args) == 0 {
 		args = []string{"./"} // No args just default to present directory.
-	} else if args.Get(0) == "." {
+	} else if args[0] == "." {
 		args[0] = "./" // If the arg is '.' treat it as './'.
 	}
 
@@ -206,7 +208,7 @@ func checkFindSyntax(ctx context.Context, cliCtx *cli.Context, encKeyDB map[stri
 // each parsed input is stored in its native typed form for
 // ease of repurposing.
 type findContext struct {
-	*cli.Context
+	*cli.Command
 	execCmd       string
 	ignorePattern string
 	namePattern   string
@@ -231,7 +233,7 @@ type findContext struct {
 }
 
 // mainFind - handler for mc find commands
-func mainFind(cliCtx *cli.Context) error {
+func mainFind(cliCtx *cli.Command) error {
 	ctx, cancelFind := context.WithCancel(globalContext)
 	defer cancelFind()
 
@@ -240,15 +242,15 @@ func mainFind(cliCtx *cli.Context) error {
 	console.SetColor("FindExecErr", color.New(color.FgRed, color.Italic, color.Bold))
 
 	// Parse encryption keys per command.
-	encKeyDB, err := validateAndCreateEncryptionKeys(cliCtx)
+	encKeyDB, err := validateAndCreateEncryptionKeys(ctx, cliCtx)
 	fatalIf(err, "Unable to parse encryption keys.")
 
 	checkFindSyntax(ctx, cliCtx, encKeyDB)
 
-	args := cliCtx.Args()
-	if !args.Present() {
+	args := cliCtx.Args().Slice()
+	if len(args) == 0 {
 		args = []string{"./"} // Not args present default to present directory.
-	} else if args.Get(0) == "." {
+	} else if args[0] == "." {
 		args[0] = "./" // If the arg is '.' treat it as './'.
 	}
 
@@ -295,7 +297,7 @@ func mainFind(cliCtx *cli.Context) error {
 	}
 
 	return doFind(ctx, &findContext{
-		Context:       cliCtx,
+		Command:       cliCtx,
 		maxDepth:      cliCtx.Uint("maxdepth"),
 		execCmd:       cliCtx.String("exec"),
 		printFmt:      cliCtx.String("print"),
@@ -313,7 +315,7 @@ func mainFind(cliCtx *cli.Context) error {
 		targetURL:     args[0],
 		targetFullURL: targetFullURL,
 		clnt:          clnt,
-		matchMeta:     getRegexMap(cliCtx, "metadata"),
-		matchTags:     getRegexMap(cliCtx, "tags"),
+		matchMeta:     getRegexMap(ctx, cliCtx, "metadata"),
+		matchTags:     getRegexMap(ctx, cliCtx, "tags"),
 	})
 }

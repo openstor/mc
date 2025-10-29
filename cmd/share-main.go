@@ -18,20 +18,21 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var shareFlags = []cli.Flag{}
 
-var shareSubcommands = []cli.Command{
-	shareDownload,
-	shareUpload,
-	shareList,
+var shareSubcommands = []*cli.Command{
+	&shareDownload,
+	&shareUpload,
+	&shareList,
 }
 
 // Share documents via URL.
@@ -42,7 +43,7 @@ var shareCmd = cli.Command{
 	Before:          setGlobalsFromContext,
 	Flags:           append(shareFlags, globalFlags...),
 	HideHelpCommand: true,
-	Subcommands:     shareSubcommands,
+	Commands:        shareSubcommands,
 }
 
 // migrateShare migrate to newest version sequentially.
@@ -62,8 +63,13 @@ func migrateShare() {
 }
 
 // mainShare - main handler for mc share command.
-func mainShare(ctx *cli.Context) error {
-	commandNotFound(ctx, shareSubcommands)
+func mainShare(ctx context.Context, cmd *cli.Command) error {
+	// Convert []*cli.Command to []cli.Command for compatibility
+	var subCmds []cli.Command
+	for _, c := range shareSubcommands {
+		subCmds = append(subCmds, *c)
+	}
+	commandNotFound(ctx, cmd, subCmds)
 	return nil
 	// Sub-commands like "upload" and "download" have their own main.
 }

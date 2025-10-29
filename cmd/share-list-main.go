@@ -18,11 +18,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var shareListFlags = []cli.Flag{}
@@ -30,7 +31,7 @@ var shareListFlags = []cli.Flag{}
 // Share documents via URL.
 var shareList = cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list previously shared objects",
 	Action:       mainShareList,
 	OnUsageError: onUsageError,
@@ -56,10 +57,10 @@ EXAMPLES:
 }
 
 // validate command-line args.
-func checkShareListSyntax(ctx *cli.Context) {
-	args := ctx.Args()
+func checkShareListSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
 	if !args.Present() || (args.First() != "upload" && args.First() != "download") {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code.
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code.
 	}
 }
 
@@ -103,9 +104,9 @@ func doShareList(cmd string) *probe.Error {
 }
 
 // main entry point for share list.
-func mainShareList(ctx *cli.Context) error {
+func mainShareList(ctx context.Context, cmd *cli.Command) error {
 	// validate command-line args.
-	checkShareListSyntax(ctx)
+	checkShareListSyntax(ctx, cmd)
 
 	// Additional command speific theme customization.
 	shareSetColor()
@@ -114,6 +115,6 @@ func mainShareList(ctx *cli.Context) error {
 	initShareConfig()
 
 	// List shares.
-	fatalIf(doShareList(ctx.Args().First()).Trace(), "Unable to list previously shared URLs.")
+	fatalIf(doShareList(cmd.Args().First()).Trace(), "Unable to list previously shared URLs.")
 	return nil
 }

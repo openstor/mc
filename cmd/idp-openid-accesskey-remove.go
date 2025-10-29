@@ -18,12 +18,14 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
 var idpOpenidAccesskeyRemoveCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "delete access key pairs for OpenID",
 	Action:       mainIDPOpenIDAccesskeyRemove,
 	Before:       setGlobalsFromContext,
@@ -44,6 +46,6 @@ EXAMPLES:
 	`,
 }
 
-func mainIDPOpenIDAccesskeyRemove(ctx *cli.Context) error {
-	return commonAccesskeyRemove(ctx)
+func mainIDPOpenIDAccesskeyRemove(ctx context.Context, cmd *cli.Command) error {
+	return commonAccesskeyRemove(ctx, cmd)
 }

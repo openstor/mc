@@ -22,11 +22,11 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateImportCmd = cli.Command{
@@ -55,9 +55,9 @@ EXAMPLES:
 }
 
 // checkReplicateImportSyntax - validate all the passed arguments
-func checkReplicateImportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateImportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -93,25 +93,25 @@ func readReplicationConfig() (*replication.Config, *probe.Error) {
 	return &cfg, nil
 }
 
-func mainReplicateImport(cliCtx *cli.Context) error {
+func mainReplicateImport(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelReplicateImport := context.WithCancel(globalContext)
 	defer cancelReplicateImport()
 
 	console.SetColor("replicateImportMessage", color.New(color.FgGreen))
-	checkReplicateImportSyntax(cliCtx)
+	checkReplicateImportSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
 	fatalIf(err, "Unable to initialize connection.")
 	rCfg, err := readReplicationConfig()
-	fatalIf(err.Trace(args...), "Unable to read replication configuration")
+	fatalIf(err.Trace(args.Slice()...), "Unable to read replication configuration")
 
 	fatalIf(client.SetReplication(ctx, rCfg, replication.Options{Op: replication.ImportOption}).Trace(aliasedURL), "Unable to set replication configuration")
 	printMsg(replicateImportMessage{
-		Op:     cliCtx.Command.Name,
+		Op:     "import",
 		Status: "success",
 		URL:    aliasedURL,
 	})

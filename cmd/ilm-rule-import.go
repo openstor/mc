@@ -21,11 +21,11 @@ import (
 	"context"
 	"os"
 
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/lifecycle"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/lifecycle"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var ilmImportCmd = cli.Command{
@@ -83,27 +83,27 @@ func readILMConfig() (*lifecycle.Configuration, *probe.Error) {
 }
 
 // checkILMImportSyntax - validate arguments passed by user
-func checkILMImportSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, globalErrorExitStatus)
+func checkILMImportSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, globalErrorExitStatus)
 	}
 }
 
-func mainILMImport(cliCtx *cli.Context) error {
+func mainILMImport(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelILMImport := context.WithCancel(globalContext)
 	defer cancelILMImport()
 
-	checkILMImportSyntax(cliCtx)
+	checkILMImportSyntax(ctx, cmd)
 	setILMDisplayColorScheme()
 
-	args := cliCtx.Args()
+	args := cmd.Args()
 	urlStr := args.Get(0)
 
 	client, err := newClient(urlStr)
 	fatalIf(err.Trace(urlStr), "Unable to initialize client for "+urlStr)
 
 	ilmCfg, err := readILMConfig()
-	fatalIf(err.Trace(args...), "Unable to read ILM configuration")
+	fatalIf(err.Trace(urlStr), "Unable to read ILM configuration")
 
 	if len(ilmCfg.Rules) == 0 {
 		// Abort here, otherwise client.SetLifecycle will remove the lifecycle configuration

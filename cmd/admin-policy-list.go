@@ -18,15 +18,17 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminPolicyListCmd = cli.Command{
+var adminPolicyListCmd = &cli.Command{
 	Name:         "list",
-	ShortName:    "ls",
+	Aliases:      []string{"ls"},
 	Usage:        "list all IAM policies",
 	Action:       mainAdminPolicyList,
 	OnUsageError: onUsageError,
@@ -48,20 +50,21 @@ EXAMPLES:
 }
 
 // checkAdminPolicyListSyntax - validate all the passed arguments
-func checkAdminPolicyListSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkAdminPolicyListSyntax(ctx context.Context, cmd *cli.Command) {
+	args := cmd.Args()
+	if args.Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
 // mainAdminPolicyList is the handle for "mc admin policy add" command.
-func mainAdminPolicyList(ctx *cli.Context) error {
-	checkAdminPolicyListSyntax(ctx)
+func mainAdminPolicyList(ctx context.Context, cmd *cli.Command) error {
+	checkAdminPolicyListSyntax(ctx, cmd)
 
 	console.SetColor("PolicyName", color.New(color.FgBlue))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -69,11 +72,11 @@ func mainAdminPolicyList(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	policies, e := client.ListCannedPolicies(globalContext)
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to list policy")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to list policy")
 
 	for k := range policies {
 		printMsg(userPolicyMessage{
-			op:     ctx.Command.Name,
+			op:     "list",
 			Policy: k,
 		})
 	}

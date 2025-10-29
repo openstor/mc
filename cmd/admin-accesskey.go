@@ -17,17 +17,21 @@
 
 package cmd
 
-import "github.com/minio/cli"
+import (
+	"context"
 
-var adminAccesskeySubcommands = []cli.Command{
-	adminAccesskeyListCmd,
-	adminAccesskeyRemoveCmd,
-	adminAccesskeyInfoCmd,
-	adminAccesskeyCreateCmd,
-	adminAccesskeyEditCmd,
-	adminAccesskeyEnableCmd,
-	adminAccesskeyDisableCmd,
-	adminAccesskeySTSRevokeCmd,
+	"github.com/urfave/cli/v3"
+)
+
+var adminAccesskeySubcommands = []*cli.Command{
+	&adminAccesskeyListCmd,
+	&adminAccesskeyRemoveCmd,
+	&adminAccesskeyInfoCmd,
+	&adminAccesskeyCreateCmd,
+	&adminAccesskeyEditCmd,
+	&adminAccesskeyEnableCmd,
+	&adminAccesskeyDisableCmd,
+	&adminAccesskeySTSRevokeCmd,
 }
 
 var adminAccesskeyCmd = cli.Command{
@@ -36,11 +40,15 @@ var adminAccesskeyCmd = cli.Command{
 	Action:          mainAdminAccesskey,
 	Before:          setGlobalsFromContext,
 	Flags:           globalFlags,
-	Subcommands:     adminAccesskeySubcommands,
+	Commands:        adminAccesskeySubcommands,
 	HideHelpCommand: true,
 }
 
-func mainAdminAccesskey(ctx *cli.Context) error {
-	commandNotFound(ctx, adminAccesskeySubcommands)
+func mainAdminAccesskey(ctx context.Context, cmd *cli.Command) error {
+	var cmds []cli.Command
+	for _, c := range adminAccesskeySubcommands {
+		cmds = append(cmds, *c)
+	}
+	commandNotFound(ctx, cmd, cmds)
 	return nil
 }

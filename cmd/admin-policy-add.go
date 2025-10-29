@@ -18,10 +18,12 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
+	"context"
+
+	"github.com/urfave/cli/v3"
 )
 
-var adminPolicyAddCmd = cli.Command{
+var adminPolicyAddCmd = &cli.Command{
 	Name:               "add",
 	Usage:              "add an IAM policy",
 	Action:             mainAdminPolicyAdd,
@@ -33,7 +35,7 @@ var adminPolicyAddCmd = cli.Command{
 	CustomHelpTemplate: `Please use 'mc admin policy create'`,
 }
 
-func mainAdminPolicyAdd(_ *cli.Context) error {
+func mainAdminPolicyAdd(ctx context.Context, cmd *cli.Command) error {
 	deprecatedError("mc admin policy create")
 	return nil
 }

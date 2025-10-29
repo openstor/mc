@@ -18,19 +18,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/pkg/v3/console"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
-var adminKMSKeyListCmd = cli.Command{
+var adminKMSKeyListCmd = &cli.Command{
 	Name:         "list",
 	Usage:        "request list of KMS master keys",
 	Action:       mainAdminKMSKeyList,
@@ -53,15 +54,15 @@ EXAMPLES:
 }
 
 // adminKMSKeyCmd is the handle for the "mc admin kms key" command.
-func mainAdminKMSKeyList(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 || len(ctx.Args()) > 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func mainAdminKMSKeyList(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	if args.Len() == 0 || args.Len() > 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 
 	console.SetColor("KeyName", color.New(color.FgBlue))
 
 	// Get the alias parameter from cli
-	args := ctx.Args()
 	aliasedURL := args.Get(0)
 
 	// Create a new MinIO Admin Client
@@ -69,7 +70,7 @@ func mainAdminKMSKeyList(ctx *cli.Context) error {
 	fatalIf(err, "Unable to initialize admin connection.")
 
 	keys, e := client.ListKeys(globalContext, "*")
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to list KMS keys")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to list KMS keys")
 
 	var rows []table.Row
 	kmsKeys := []string{}

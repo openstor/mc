@@ -28,22 +28,22 @@ import (
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/minio/cli"
-	json "github.com/minio/colorjson"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
-	"github.com/minio/minio-go/v7/pkg/replication"
-	"github.com/minio/pkg/v3/console"
 	"github.com/olekukonko/tablewriter"
+	json "github.com/openstor/colorjson"
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/openstor/openstor-go/v7/pkg/replication"
+	"github.com/openstor/pkg/v3/console"
+	"github.com/urfave/cli/v3"
 )
 
 var replicateStatusFlags = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "backlog,b",
 		Usage: "show most recent failures for one or more nodes. Valid values are 'all', or node name",
 		Value: "all",
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:  "nodes,n",
 		Usage: "show replication speed for all nodes",
 	},
@@ -75,9 +75,9 @@ EXAMPLES:
 }
 
 // checkReplicateStatusSyntax - validate all the passed arguments
-func checkReplicateStatusSyntax(ctx *cli.Context) {
-	if len(ctx.Args()) != 1 {
-		showCommandHelpAndExit(ctx, 1) // last argument is exit code
+func checkReplicateStatusSyntax(ctx context.Context, cmd *cli.Command) {
+	if cmd.Args().Len() != 1 {
+		showCommandHelpAndExit(ctx, cmd, 1) // last argument is exit code
 	}
 }
 
@@ -272,7 +272,7 @@ func (s replicateStatusMessage) String() string {
 	return sb.String()
 }
 
-func mainReplicateStatus(cliCtx *cli.Context) error {
+func mainReplicateStatus(ctx context.Context, cmd *cli.Command) error {
 	ctx, cancelReplicateStatus := context.WithCancel(globalContext)
 	defer cancelReplicateStatus()
 
@@ -300,10 +300,10 @@ func mainReplicateStatus(cliCtx *cli.Context) error {
 	for _, c := range colors {
 		console.SetColor(fmt.Sprintf("Node%d", c), color.New(color.Bold, c))
 	}
-	checkReplicateStatusSyntax(cliCtx)
+	checkReplicateStatusSyntax(ctx, cmd)
 
 	// Get the alias parameter from cli
-	args := cliCtx.Args()
+	args := cmd.Args()
 	aliasedURL := args.Get(0)
 	// Create a new Client
 	client, err := newClient(aliasedURL)
@@ -311,18 +311,18 @@ func mainReplicateStatus(cliCtx *cli.Context) error {
 	// Create a new MinIO Admin Client
 	admClient, cerr := newAdminClient(aliasedURL)
 	fatalIf(cerr, "Unable to initialize admin connection.")
-	_, sourceBucket := url2Alias(args[0])
+	_, sourceBucket := url2Alias(args.Get(0))
 
 	replicateStatus, err := client.GetReplicationMetrics(ctx)
-	fatalIf(err.Trace(args...), "Unable to get replication status")
+	fatalIf(err.Trace(args.Slice()...), "Unable to get replication status")
 	targets, e := admClient.ListRemoteTargets(globalContext, sourceBucket, "")
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to fetch remote target.")
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to fetch remote target.")
 	cfg, err := client.GetReplication(ctx)
-	fatalIf(err.Trace(args...), "Unable to fetch replication configuration.")
+	fatalIf(err.Trace(args.Slice()...), "Unable to fetch replication configuration.")
 
-	if cliCtx.IsSet("nodes") {
+	if cmd.IsSet("nodes") {
 		printMsg(replicateXferMessage{
-			Op:             cliCtx.Command.Name,
+			Op:             "status",
 			Status:         "success",
 			ReplQueueStats: replicateStatus.QueueStats,
 		})
@@ -330,7 +330,7 @@ func mainReplicateStatus(cliCtx *cli.Context) error {
 	}
 
 	printMsg(replicateStatusMessage{
-		Op:      cliCtx.Command.Name,
+		Op:      "status",
 		URL:     aliasedURL,
 		Metrics: replicateStatus,
 		Targets: targets,

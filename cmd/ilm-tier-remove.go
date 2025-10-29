@@ -18,18 +18,20 @@
 package cmd
 
 import (
-	"github.com/minio/cli"
-	"github.com/minio/madmin-go/v3"
-	"github.com/minio/mc/pkg/probe"
+	"context"
+
+	"github.com/openstor/madmin-go/v4"
+	"github.com/openstor/mc/pkg/probe"
+	"github.com/urfave/cli/v3"
 )
 
 var adminTierRmFlags = []cli.Flag{
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "force",
 		Usage:  "forcefully remove the specified tier",
 		Hidden: true,
 	},
-	cli.BoolFlag{
+	&cli.BoolFlag{
 		Name:   "dangerous",
 		Usage:  "additional flag to be required in addition to force flag",
 		Hidden: true,
@@ -38,7 +40,7 @@ var adminTierRmFlags = []cli.Flag{
 
 var adminTierRmCmd = cli.Command{
 	Name:         "remove",
-	ShortName:    "rm",
+	Aliases:      []string{"rm"},
 	Usage:        "remove an empty remote tier",
 	Action:       mainAdminTierRm,
 	OnUsageError: onUsageError,
@@ -62,14 +64,14 @@ EXAMPLES:
 `,
 }
 
-func mainAdminTierRm(ctx *cli.Context) error {
-	args := ctx.Args()
-	nArgs := len(args)
+func mainAdminTierRm(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args()
+	nArgs := args.Len()
 	if nArgs < 2 {
-		showCommandHelpAndExit(ctx, 1)
+		showCommandHelpAndExit(ctx, cmd, 1)
 	}
 	if nArgs != 2 {
-		fatalIf(errInvalidArgument().Trace(args.Tail()...),
+		fatalIf(errInvalidArgument().Trace(args.Slice()...),
 			"Incorrect number of arguments for tier remove command.")
 	}
 
@@ -79,7 +81,7 @@ func mainAdminTierRm(ctx *cli.Context) error {
 		fatalIf(errInvalidArgument(), "Tier name can't be empty")
 	}
 
-	if ctx.Bool("force") && !ctx.Bool("dangerous") {
+	if cmd.Bool("force") && !cmd.Bool("dangerous") {
 		fatalIf(errInvalidArgument(), "This operation results in an irreversible disconnection from the specified remote tier. If you are really sure, retry this command with ‘--force’ and ‘--dangerous’ flags.")
 	}
 
@@ -87,11 +89,11 @@ func mainAdminTierRm(ctx *cli.Context) error {
 	client, cerr := newAdminClient(aliasedURL)
 	fatalIf(cerr, "Unable to initialize admin connection.")
 
-	e := client.RemoveTierV2(globalContext, tierName, madmin.RemoveTierOpts{Force: ctx.Bool("force")})
-	fatalIf(probe.NewError(e).Trace(args...), "Unable to remove remote tier target")
+	e := client.RemoveTierV2(globalContext, tierName, madmin.RemoveTierOpts{Force: cmd.Bool("force")})
+	fatalIf(probe.NewError(e).Trace(args.Slice()...), "Unable to remove remote tier target")
 
 	printMsg(&tierMessage{
-		op:       ctx.Command.Name,
+		op:       "remove",
 		Status:   "success",
 		TierName: tierName,
 	})
